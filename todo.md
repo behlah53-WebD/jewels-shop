@@ -1,0 +1,35 @@
+# Project TODO
+
+- [x] Establish the Aurelia Jewels brand system with deep emerald, black, ivory, and champagne-gold design tokens; editorial typography; and accessible responsive styling.
+- [x] Build a cinematic, motion-conscious home page with a jewellery hero, collection links, value propositions, featured pieces, editorial campaign area, care guidance, newsletter form, and premium footer.
+- [x] Add fully responsive primary navigation, mobile menu, search entry point, cart counter, wishlist state, and account entry point.
+- [x] Create browsable catalogue and category views with local filters, sorting controls, product cards, pagination-style load more behavior, and no fabricated ratings or customer reviews.
+- [x] Create a detailed product page with a gallery, thumbnails, variant selectors, stock status, gift message, quantity controls, cart and wishlist actions, and product-information accordions.
+- [x] Upgrade the product gallery to include multiple thumbnails with working image selection and swapping behavior.
+- [x] Implement local preview cart, wishlist, search, and checkout-success interactions so important storefront actions work before the external commerce integration is connected.
+- [x] Add supporting pages and route shells for journal, custom jewellery request, about, contact, guides, policy information, customer account, and secure-admin handoff.
+- [x] Provide a professional admin dashboard preview route with accessible layout, key metrics, recent-order table states, inventory cues, and a clear integration handoff message.
+- [x] Keep Shopify, Stripe, and all external store connections unconfigured until the owner chooses to connect them later.
+- [x] Replace the template’s relational database assumptions with a MongoDB-ready data access layer and documented `MONGODB_URI` configuration handoff.
+- [x] Add unit tests for critical storefront utilities and interaction state, then perform browser, TypeScript, and build verification.
+- [x] Add a complete luxury storefront shell with offer announcement, scroll-aware header behavior, mega-menu discovery, recent/trending search, mobile bottom navigation, support shortcut, privacy controls, trust signals, and a richer multi-column footer.
+- [x] Expand the home page into a long-form conversion journey with new-arrivals discovery, jewellery-type/metal/gemstone discovery, limited collection, style quiz, recommendations, bridal and occasion edits, gift finder, social gallery, journal highlights, FAQ, and final CTA.
+- [x] Expand browse and category discovery with collection hero content, active filters, a grid/list selector, quick-add interactions, recommendations, guides, FAQ, and editorial buying content.
+- [x] Expand product detail with image zoom, video and virtual-try-on placeholders, SKU and finance information, postal-code delivery estimate, gift-message controls, specification table, social sharing, complementary products, and an honest zero-review/Q&A state pending real customer data.
+- [x] Enrich cart and checkout previews with shipping-progress, discount and gift-card entry, delivery and protection choices, saved-for-later, payment/terms states, and a clear separation from inactive payment-provider processing.
+- [x] Expand the customer-account preview with profile, security, address, order, payment, returns, request, gift-card, preference, and deletion settings views that remain clearly pending MongoDB Atlas activation.
+- [x] Expand about, contact, and journal pages into multi-section editorial experiences, including a validated contact/custom enquiry flow, appointment request, image-upload control, and map placeholder.
+- [x] Expand the admin preview into structured operations areas for content, catalogue, customer, campaign, fulfillment, reporting, SEO, permissions, and audit workflows, while retaining honest disconnected-data states.
+- [x] Defer Stripe integration and leave `MONGODB_URI` and payment secrets unconfigured until the owner chooses to provide them; payment experiences remain preview-only by instruction.
+- [x] Add tests and visual verification for the new storefront behaviours, ensuring review/testimonial areas never fabricate customer-generated content.
+- [x] Enable a reduced-motion-aware zoom interaction for the detailed product image gallery in the Next.js App Router product route.
+- [x] Migrate the current Vite and Express application into a self-contained Next.js App Router project with all customer-facing routes under the `app/` directory.
+- [x] Ensure the downloaded project starts the same storefront locally with `npm run dev`, without Manus-only runtime dependencies or required platform configuration.
+- [x] Keep every checkout, payment, coupon, gift-card, protection, and order-confirmation control as a clearly labelled non-processing preview; do not initialise Stripe or execute payment requests.
+- [x] Add a clearly labelled jewellery-protection preview choice to checkout and a dedicated non-processing order-confirmation preview route.
+- [x] Add a visible product specification table and preview-only delivery-method choices to the Next.js product and checkout flows.
+- [x] Convert customer account cards into working preview subviews for account, requests, gift cards, privacy, and returns workflows.
+- [x] Convert the admin navigation into working structured operation views for catalogue, customers, campaigns, fulfilment, SEO, permissions, and audit workflows.
+- [x] Expand local tests for pure storefront interaction utilities and honest empty-review-state safeguards, then rerun the full npm validation sequence.
+- [x] Restore the stopped local development server and confirm the Aurelia Jewels preview responds again.
+- [ ] Package a clean source-only ZIP archive that extracts into the organised Aurelia Jewels Next.js project and starts with npm install followed by npm run dev.
