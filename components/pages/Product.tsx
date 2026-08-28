@@ -9,14 +9,25 @@ import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
 import { Accordion } from "@/components/ui/Accordion";
 
+import { useRouter } from "next/navigation";
+
 export function Product({ slug }: { slug?: string }) {
-  const { add, save, toggle } = useStore();
+  const router = useRouter();
+  const { add, save, toggle, buyNow } = useStore();
 
   const [p, setP] = useState<any>(fallbackProducts[0]);
   const [loading, setLoading] = useState(true);
   const [im, setIm] = useState(0);
   const [size, setSize] = useState("6");
   const [gift, setGift] = useState(false);
+
+  const handleBuyNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const ok = buyNow(p, 1, size);
+    if (ok) {
+      router.push("/checkout");
+    }
+  };
 
   useEffect(() => {
     async function fetchProduct() {
@@ -139,9 +150,9 @@ export function Product({ slug }: { slug?: string }) {
                 <Btn className="gold" onClick={add}>
                   <ShoppingBag size={16} /> Add to bag
                 </Btn>
-                <Link href="/checkout" className="btn outline">
+                <button type="button" onClick={handleBuyNow} className="btn outline">
                   Buy now
-                </Link>
+                </button>
                 <button
                   className="save"
                   onClick={() => toggle(p._id || p.id)}

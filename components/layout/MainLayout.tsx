@@ -11,6 +11,7 @@ import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { SearchOverlay } from "./SearchOverlay";
 import { BagDrawer } from "./BagDrawer";
+import { AuthModal } from "@/components/ui/AuthModal";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const { menu, setMenu, search, setSearch, bag, setBag, count } = useStore();
@@ -80,6 +81,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
       {search && <SearchOverlay />}
       {bag && <BagDrawer />}
+      <AuthModal />
 
       {!isStandalone && (
         <a

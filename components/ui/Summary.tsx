@@ -5,8 +5,14 @@ import { LockKeyhole } from "lucide-react";
 import { useStore } from "@/components/context/StoreContext";
 
 export function Summary() {
-  const { cartItems, count } = useStore();
+  const { cartItems, count, proceedToCheckout } = useStore();
   const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0) || (count ? 186000 : 0);
+
+  const handleCheckoutClick = (e: React.MouseEvent) => {
+    if (!proceedToCheckout()) {
+      e.preventDefault();
+    }
+  };
 
   return (
     <aside className="summary">
@@ -34,7 +40,7 @@ export function Summary() {
         <dt>Taxes & Shipping</dt>
         <dd>Complimentary</dd>
       </dl>
-      <Link href="/checkout" className="btn gold" style={{ width: "100%", justifyContent: "center" }}>
+      <Link href="/checkout" className="btn gold" onClick={handleCheckoutClick} style={{ width: "100%", justifyContent: "center" }}>
         Proceed to Checkout
       </Link>
       <div className="secure">

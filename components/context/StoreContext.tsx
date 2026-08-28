@@ -18,7 +18,11 @@ interface StoreContextType {
   menu: boolean;
   search: boolean;
   bag: boolean;
+  authModal: boolean;
+  isAuthenticated: boolean;
   add: (itemOrProduct?: any, quantity?: number, size?: string) => void;
+  buyNow: (itemOrProduct?: any, quantity?: number, size?: string) => boolean;
+  proceedToCheckout: () => boolean;
   updateQuantity: (product: string, quantity: number, size?: string) => void;
   removeFromCart: (product: string, size?: string) => void;
   clearCart: () => void;
@@ -26,6 +30,7 @@ interface StoreContextType {
   setMenu: (open: boolean) => void;
   setSearch: (open: boolean) => void;
   setBag: (open: boolean) => void;
+  setAuthModal: (open: boolean) => void;
   syncCartAndWishlist: () => Promise<void>;
 }
 
@@ -35,6 +40,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
   const [bag, setBag] = useState(false);
+  const [authModal, setAuthModal] = useState(false);
   const [cartItems, setCartItems] = useState<CartItemType[]>([]);
   const [save, setSave] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -122,7 +128,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const proceedToCheckout = (): boolean => {
+    if (!isAuthenticated) {
+      setAuthModal(true);
+      return false;
+    }
+    return true;
+  };
+
+  const buyNow = (itemOrProduct?: any, quantity: number = 1, size: string = "6"): boolean => {
+    if (!isAuthenticated) {
+      setAuthModal(true);
+      return false;
+    }
+    add(itemOrProduct, quantity, size);
+    return true;
+  };
+
   const add = (itemOrProduct?: any, quantity: number = 1, size: string = "6") => {
+    if (!isAuthenticated) {
+      setAuthModal(true);
+      return;
+    }
+
     let newItem: CartItemType;
 
     if (itemOrProduct && typeof itemOrProduct === "object") {
@@ -201,6 +229,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggle = (id: string) => {
+    if (!isAuthenticated) {
+      setAuthModal(true);
+      return;
+    }
+
     const newSave = save.includes(id) ? save.filter((y) => y !== id) : [...save, id];
     updateWishlistState(newSave);
   };
@@ -216,7 +249,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         menu,
         search,
         bag,
+        authModal,
+        isAuthenticated,
         add,
+        buyNow,
+        proceedToCheckout,
         updateQuantity,
         removeFromCart,
         clearCart,
@@ -224,6 +261,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setMenu,
         setSearch,
         setBag,
+        setAuthModal,
         syncCartAndWishlist,
       }}
     >

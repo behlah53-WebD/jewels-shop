@@ -5,10 +5,18 @@ import { X, ShoppingBag, Trash2 } from "lucide-react";
 import { useStore } from "@/components/context/StoreContext";
 
 export function BagDrawer() {
-  const { count, cartItems, setBag, removeFromCart } = useStore();
+  const { count, cartItems, setBag, removeFromCart, proceedToCheckout } = useStore();
 
   const handleClose = () => {
     setBag(false);
+  };
+
+  const handleCheckoutClick = (e: React.MouseEvent) => {
+    if (!proceedToCheckout()) {
+      e.preventDefault();
+    } else {
+      handleClose();
+    }
   };
 
   const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -54,7 +62,7 @@ export function BagDrawer() {
                 <span>Subtotal</span>
                 <b>₹{subtotal.toLocaleString("en-IN")}</b>
               </div>
-              <Link href="/checkout" className="btn gold" onClick={handleClose} style={{ width: "100%", justifyContent: "center" }}>
+              <Link href="/checkout" className="btn gold" onClick={handleCheckoutClick} style={{ width: "100%", justifyContent: "center" }}>
                 Continue to checkout
               </Link>
             </div>

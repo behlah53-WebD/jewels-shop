@@ -380,7 +380,7 @@ export function Admin() {
   }
 
   return (
-    <div style={{display:'flex',minHeight:'100vh',background:'#070f0a',color:'#e8ede6',fontFamily:"'Inter',sans-serif",position:'relative'}}>
+    <div className="admin-page admin-page-container" style={{display:'flex',minHeight:'100vh',background:'#070f0a',color:'#e8ede6',fontFamily:"'Inter',sans-serif",position:'relative'}}>
 
       {/* ── TOAST ─────────────────────────────────────────────── */}
       {toast && (
@@ -400,26 +400,44 @@ export function Admin() {
       )}
 
       {/* ── SIDEBAR ───────────────────────────────────────────── */}
-      <aside style={{
+      <aside className="admin-sidebar" style={{
         width:'240px',flexShrink:0,
         background:'linear-gradient(180deg,#0a1a10 0%,#071209 100%)',
         borderRight:'1px solid #1a3323',
         display:'flex',flexDirection:'column',
-        padding:'1.5rem 1rem',
-        position:'sticky',top:0,height:'100vh',overflowY:'auto',
+        padding:'1.25rem 1rem',
+        position:'sticky',top:0,height:'100vh',overflow:'hidden',
       }}>
-        {/* Brand */}
-        <div style={{padding:'.5rem .5rem 1.5rem',borderBottom:'1px solid #1a3323',marginBottom:'1.5rem'}}>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',fontWeight:500,letterSpacing:'-.04em',color:'#d5ad67',marginBottom:'.4rem'}}>
-            Aurelia
+        {/* Brand Header - Fixed at Top */}
+        <div className="admin-sidebar-brand" style={{padding:'.25rem .5rem 1rem',borderBottom:'1px solid #1a3323',marginBottom:'1rem',flexShrink:0}}>
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',fontWeight:500,letterSpacing:'-.04em',color:'#d5ad67',marginBottom:'.2rem'}}>
+              Aurelia
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:'.35rem',fontSize:'9px',fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:'#7a9e88',background:'#ffffff08',border:'1px solid #1e4030',borderRadius:'999px',padding:'.2rem .6rem',width:'fit-content'}}>
+              <ShieldCheck size={10}/> Operations Portal
+            </div>
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:'.35rem',fontSize:'9px',fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:'#7a9e88',background:'#ffffff08',border:'1px solid #1e4030',borderRadius:'999px',padding:'.3rem .75rem',width:'fit-content'}}>
-            <ShieldCheck size={10}/> Operations Portal
+          <div className="admin-sidebar-mobile-actions" style={{display:'none',alignItems:'center',gap:'.5rem'}}>
+            <Link
+              href="/"
+              target="_blank"
+              style={{display:'flex',alignItems:'center',gap:'.3rem',padding:'.35rem .65rem',borderRadius:'6px',background:'#ffffff08',border:'1px solid #1a3323',fontSize:'.7rem',color:'#7a9e88',textDecoration:'none'}}
+            >
+              <span>Store</span>
+              <ExternalLink size={11}/>
+            </Link>
+            <button
+              onClick={handleLogout}
+              style={{display:'flex',alignItems:'center',gap:'.3rem',padding:'.35rem .65rem',borderRadius:'6px',background:'#2d0e0e30',border:'1px solid #4d1a1a50',color:'#e8a0a0',fontSize:'.7rem',cursor:'pointer'}}
+            >
+              <LogOut size={11}/> Sign Out
+            </button>
           </div>
         </div>
 
-        {/* Nav links */}
-        <nav style={{display:'flex',flexDirection:'column',gap:'.2rem',flex:1}}>
+        {/* Nav links - Scrollable Middle (Scrollbar hidden) */}
+        <nav className="admin-sidebar-nav" style={{display:'flex',flexDirection:'column',gap:'.2rem',flex:1,overflowY:'auto',scrollbarWidth:'none'}}>
           {[
             { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
             { id: 'products',  label: 'Catalogue',         icon: Package },
@@ -435,6 +453,7 @@ export function Admin() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id as AdminTab)}
+                className={active ? 'active' : ''}
                 style={{
                   display:'flex',alignItems:'center',gap:'.7rem',
                   padding:'.65rem .9rem',borderRadius:'8px',
@@ -454,8 +473,8 @@ export function Admin() {
           })}
         </nav>
 
-        {/* User + Actions */}
-        <div style={{borderTop:'1px solid #1a3323',paddingTop:'1.2rem',marginTop:'1.2rem'}}>
+        {/* User + Actions Footer - Fixed at Bottom */}
+        <div className="admin-sidebar-user" style={{borderTop:'1px solid #1a3323',paddingTop:'1rem',marginTop:'auto',flexShrink:0}}>
           <div style={{display:'flex',alignItems:'center',gap:'.7rem',marginBottom:'1rem',padding:'.6rem .7rem',background:'#ffffff05',borderRadius:'8px'}}>
             <div style={{width:'32px',height:'32px',borderRadius:'50%',background:'linear-gradient(135deg,#1a3d28,#2a5c40)',display:'grid',placeItems:'center',flexShrink:0,border:'1px solid #2a5c40'}}>
               <Users size={14} style={{color:'#d5ad67'}}/>
@@ -483,7 +502,7 @@ export function Admin() {
       </aside>
 
       {/* ── MAIN CONTENT ──────────────────────────────────────── */}
-      <main style={{flex:1,overflowY:'auto',background:'#080f0a',padding:'2rem 2.5rem',minHeight:'100vh'}}>
+      <main className="admin-main-content" style={{flex:1,overflowY:'auto',background:'#080f0a',padding:'2rem 2.5rem',minHeight:'100vh'}}>
 
         {/* Top bar */}
         <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'2rem'}}>
