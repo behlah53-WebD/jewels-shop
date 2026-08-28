@@ -1,3 +1,11 @@
-import { AureliaExperience } from "@/components/AureliaExperience";
-import { DeliveryChoices } from "@/components/ExpansionPanels";
-export default function Page(){return <><AureliaExperience page="checkout"/><DeliveryChoices/></>}
+import { Checkout } from "@/components/pages/Checkout";
+import { DeliveryChoices } from "@/components/sections/DeliveryChoices";
+
+export default function Page() {
+  return (
+    <>
+      <Checkout />
+      <DeliveryChoices />
+    </>
+  );
+}

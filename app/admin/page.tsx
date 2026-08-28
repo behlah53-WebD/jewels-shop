@@ -1,10 +1,5 @@
-import { AureliaExperience } from "@/components/AureliaExperience";
-import { AdminWorkflowViews } from "@/components/ExpansionPanels";
-export default function Page() {
-  return (
-    <>
-      <AureliaExperience page="admin" />
-      <AdminWorkflowViews />
-    </>
-  );
+import { Admin } from "@/components/pages/Admin";
+
+export default function AdminPage() {
+  return <Admin />;
 }

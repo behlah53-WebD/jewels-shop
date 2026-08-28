@@ -1,11 +1,15 @@
-import { AureliaExperience } from "@/components/AureliaExperience";
-import { ProductSpecificationTable } from "@/components/ExpansionPanels";
+import { Product } from "@/components/pages/Product";
+import { ProductSpecificationTable } from "@/components/sections/ProductSpecificationTable";
 
-export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { slug } = await params;
   return (
     <>
-      <AureliaExperience page="product" slug={slug} />
+      <Product slug={slug} />
       <ProductSpecificationTable slug={slug} />
     </>
   );

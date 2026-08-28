@@ -1,1 +1,5 @@
-import { AureliaExperience } from "@/components/AureliaExperience"; export default function Page(){return <AureliaExperience page="home"/>}
+import { Home } from "@/components/pages/Home";
+
+export default function Page() {
+  return <Home />;
+}
