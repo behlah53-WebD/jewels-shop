@@ -45,26 +45,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [save, setSave] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Initialize from localStorage first for guests
-  useEffect(() => {
-    try {
-      const localCart = localStorage.getItem("aurelia_cart");
-      if (localCart) {
-        const parsed = JSON.parse(localCart);
-        if (Array.isArray(parsed)) setCartItems(parsed);
-      }
-
-      const localSave = localStorage.getItem("aurelia_wishlist");
-      if (localSave) {
-        const parsed = JSON.parse(localSave);
-        if (Array.isArray(parsed)) setSave(parsed);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  // Sync with backend API on mount
+  // Sync with MongoDB backend API on mount
   useEffect(() => {
     syncCartAndWishlist();
   }, []);
@@ -83,27 +64,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         if (cartRes.success && Array.isArray(cartRes.items)) {
           setCartItems(cartRes.items);
-          localStorage.setItem("aurelia_cart", JSON.stringify(cartRes.items));
+        } else {
+          setCartItems([]);
         }
 
         if (wishlistRes.success && Array.isArray(wishlistRes.products)) {
           setSave(wishlistRes.products);
-          localStorage.setItem("aurelia_wishlist", JSON.stringify(wishlistRes.products));
+        } else {
+          setSave([]);
         }
       } else {
         setIsAuthenticated(false);
+        setCartItems([]);
+        setSave([]);
       }
     } catch (err) {
       console.error("Cart/Wishlist Sync Error:", err);
+      setIsAuthenticated(false);
+      setCartItems([]);
+      setSave([]);
     }
   };
 
   const updateCartState = (newItems: CartItemType[]) => {
     setCartItems(newItems);
-    try {
-      localStorage.setItem("aurelia_cart", JSON.stringify(newItems));
-    } catch (e) {}
-
     if (isAuthenticated) {
       fetch("/api/cart", {
         method: "POST",
@@ -115,10 +99,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const updateWishlistState = (newSave: string[]) => {
     setSave(newSave);
-    try {
-      localStorage.setItem("aurelia_wishlist", JSON.stringify(newSave));
-    } catch (e) {}
-
     if (isAuthenticated) {
       fetch("/api/wishlist", {
         method: "POST",
@@ -153,19 +133,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     let newItem: CartItemType;
 
-    if (itemOrProduct && typeof itemOrProduct === "object") {
-      const pid = itemOrProduct._id || itemOrProduct.id || itemOrProduct.slug || "solenne";
+    // Check if itemOrProduct is a React SyntheticEvent object
+    let target = itemOrProduct;
+    if (target && typeof target === "object" && (target.nativeEvent || target._reactName || (!target.name && !target._id && !target.id && !target.slug))) {
+      target = fallbackProducts[0];
+    }
+
+    if (target && typeof target === "object") {
+      const pid = target._id || target.id || target.slug || "solenne";
       newItem = {
-        product: pid,
-        name: itemOrProduct.name || "Solenne Emerald-Cut Ring",
-        price: typeof itemOrProduct.price === "number" ? itemOrProduct.price : 186000,
+        product: pid.toString(),
+        name: target.name || "Solenne Emerald-Cut Ring",
+        price: typeof target.price === "number" ? target.price : 186000,
         quantity: quantity,
-        image: itemOrProduct.featuredImage || itemOrProduct.image || (itemOrProduct.images && itemOrProduct.images[0]) || imgs.ring,
+        image: target.featuredImage || target.image || (target.images && target.images[0]) || imgs.ring,
         size: size,
       };
-    } else if (typeof itemOrProduct === "string") {
+    } else if (typeof target === "string") {
       newItem = {
-        product: itemOrProduct,
+        product: target,
         name: "Solenne Emerald-Cut Ring",
         price: 186000,
         quantity: quantity,
@@ -234,7 +220,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const newSave = save.includes(id) ? save.filter((y) => y !== id) : [...save, id];
+    const pid = id.toString();
+    const newSave = save.includes(pid) ? save.filter((y) => y !== pid) : [...save, pid];
     updateWishlistState(newSave);
   };
 

@@ -155,10 +155,27 @@ export function Checkout() {
             </div>
           )}
 
-          {successMsg && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-md mb-4">
-              <CheckCircle size={16} />
-              <span>{successMsg}</span>
+          {cartItems.length > 0 && (
+            <div className="checkout-items-summary" style={{ marginBottom: "2rem" }}>
+              <h3 style={{ fontSize: "0.95rem", fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--ink)", marginBottom: "0.85rem" }}>
+                Items in your order ({count})
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem", background: "#faf5ec", padding: "1.25rem", border: "1px solid #e4d9c8", borderRadius: "10px" }}>
+                {cartItems.map((item, idx) => (
+                  <div key={`${item.product}-${idx}`} style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                    <img src={item.image || "/placeholder.jpg"} alt={item.name} style={{ width: "56px", height: "64px", objectFit: "cover", borderRadius: "6px", border: "1px solid #d4c4a8", flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.95rem", fontWeight: 500, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
+                      <div style={{ fontSize: "0.75rem", color: "#7a8578", marginTop: "0.15rem" }}>
+                        Qty: {item.quantity} {item.size ? `· Size: ${item.size}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.95rem", fontWeight: 500, color: "var(--ink)", whiteSpace: "nowrap" }}>
+                      ₹{(item.price * item.quantity).toLocaleString("en-IN")}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

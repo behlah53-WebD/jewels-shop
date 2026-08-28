@@ -147,7 +147,7 @@ export function Product({ slug }: { slug?: string }) {
               </fieldset>
 
               <div className="buy-row">
-                <Btn className="gold" onClick={add}>
+                <Btn className="gold" onClick={() => add(p, 1, size)}>
                   <ShoppingBag size={16} /> Add to bag
                 </Btn>
                 <button type="button" onClick={handleBuyNow} className="btn outline">

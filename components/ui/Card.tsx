@@ -27,7 +27,7 @@ export function Card({ p }: { p: ProductType | any }) {
         <button className="save" onClick={() => toggle(id)} aria-label={isSaved ? "Remove from wishlist" : "Add to wishlist"}>
           <Heart fill={isSaved ? "currentColor" : "none"} />
         </button>
-        <button className="quick" onClick={add}>
+        <button className="quick" onClick={() => add(p)}>
           Quick add <ShoppingBag size={15} />
         </button>
       </div>

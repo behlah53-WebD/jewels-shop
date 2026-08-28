@@ -50,7 +50,7 @@ export function SearchOverlay() {
                   <small>{p.price}</small>
                 </span>
               </Link>
-              <button onClick={add}>Add</button>
+              <button onClick={() => add(p)}>Add</button>
             </article>
           ))}
         </div>

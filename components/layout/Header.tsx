@@ -21,7 +21,7 @@ export function Header() {
   }, []);
 
   const isNavDark = pathname
-    ? ["/product", "/cart", "/checkout", "/account", "/contact", "/guide"].some((path) =>
+    ? ["/product", "/cart", "/checkout", "/account", "/contact", "/guide", "/wishlist"].some((path) =>
         pathname.startsWith(path)
       )
     : false;
@@ -54,7 +54,7 @@ export function Header() {
           <Link className="icon" href="/account" aria-label="Account">
             <UserRound />
           </Link>
-          <Link className="icon" href="/account" aria-label="Wishlist">
+          <Link className="icon" href="/wishlist" aria-label="Wishlist">
             <Heart />
             <small>{save.length}</small>
           </Link>
