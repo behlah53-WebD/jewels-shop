@@ -18,10 +18,10 @@ export function Journal() {
         <img src={imgs.emerald} alt="Aurelia journal" />
         <div>
           <p>The Aurelia journal</p>
-          <h1>
+          <h1 className="text-white">
             Notes for a life <i>well adorned.</i>
           </h1>
-          <span>
+          <span className="text-white">
             Stories of craft, material, giving, and the moments that collect
             around a piece.
           </span>

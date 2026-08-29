@@ -43,6 +43,11 @@ export async function connectDB(): Promise<typeof mongoose | null> {
     const opts = {
       bufferCommands: false,
       dbName: process.env.MONGODB_DB_NAME || "aurelia_jewels",
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).catch(async (err) => {

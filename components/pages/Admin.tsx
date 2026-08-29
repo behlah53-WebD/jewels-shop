@@ -154,6 +154,20 @@ export function Admin() {
     const rawShort = (formData.get("shortDescription") as string)?.trim();
     const rawCollection = (formData.get("collectionName") as string)?.trim();
 
+    const rawSpecs = (formData.get("specifications") as string) || "";
+    const specificationsArray = rawSpecs
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const idx = line.indexOf(":");
+        if (idx === -1) return { key: "Detail", value: line };
+        const key = line.substring(0, idx).trim();
+        const value = line.substring(idx + 1).trim();
+        return key && value ? { key, value } : null;
+      })
+      .filter(Boolean);
+
     const payload = {
       name: (formData.get("name") as string)?.trim(),
       slug: rawSlug || undefined,
@@ -170,6 +184,7 @@ export function Admin() {
       shortDescription: rawShort || undefined,
       featured: formData.get("featured") === "on",
       active: formData.get("active") === "on",
+      specifications: specificationsArray,
     };
 
     const isEdit = !!editingProduct?._id;
@@ -236,12 +251,15 @@ export function Admin() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    const activeInput = (e.currentTarget.elements.namedItem("active") as HTMLInputElement);
+    const active = activeInput ? activeInput.checked : true;
+
     const payload = {
       name: formData.get("name") as string,
       slug: formData.get("slug") as string,
       description: formData.get("description") as string,
       image: formData.get("image") as string,
-      active: formData.get("active") === "on",
+      active: active,
     };
 
     const isEdit = !!editingCategory?._id;
@@ -267,6 +285,25 @@ export function Admin() {
       fetchDashboardData();
     } catch (err: any) {
       showToast("error", "Failed to save category");
+    }
+  };
+
+  const handleToggleCategoryActive = async (id: string, currentActive: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/categories/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !currentActive }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("success", `Category status set to ${!currentActive ? "Active" : "Inactive"}`);
+        fetchDashboardData();
+      } else {
+        showToast("error", data.error || "Update failed");
+      }
+    } catch (err) {
+      showToast("error", "Update failed");
     }
   };
 
@@ -298,6 +335,28 @@ export function Admin() {
       if (data.success) {
         showToast("success", "Order status updated");
         if (selectedOrder) setSelectedOrder(data.order);
+        fetchDashboardData();
+      } else {
+        showToast("error", data.error || "Update failed");
+      }
+    } catch (err) {
+      showToast("error", "Update failed");
+    }
+  };
+
+  const handleProcessReturn = async (id: string, returnStatus: "approved" | "rejected") => {
+    try {
+      const res = await fetch(`/api/admin/orders/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("success", `Return request ${returnStatus}`);
+        if (selectedOrder && selectedOrder._id === id) {
+          setSelectedOrder(data.order);
+        }
         fetchDashboardData();
       } else {
         showToast("error", data.error || "Update failed");
@@ -879,11 +938,23 @@ export function Admin() {
                       <td style={{padding:'.75rem 1rem',fontFamily:'monospace',fontSize:'.73rem',color:'#d5ad67'}}>{c.slug}</td>
                       <td style={{padding:'.75rem 1rem',fontSize:'.75rem',maxWidth:'220px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.description||'—'}</td>
                       <td style={{padding:'.75rem 1rem'}}>
-                        <span style={{padding:'.22rem .65rem',borderRadius:'999px',fontSize:'.68rem',fontWeight:700,
-                          background: c.active ? '#0d3320' : '#1a1a1a',
-                          color: c.active ? '#4ee07a' : '#4a5a48'}}>
-                          {c.active ? 'Active' : 'Inactive'}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCategoryActive(c._id, c.active !== false)}
+                          title="Click to toggle active status"
+                          style={{
+                            border:'none',
+                            padding:'.22rem .65rem',
+                            borderRadius:'999px',
+                            fontSize:'.68rem',
+                            fontWeight:700,
+                            cursor:'pointer',
+                            background: c.active !== false ? '#0d3320' : '#2a1212',
+                            color: c.active !== false ? '#4ee07a' : '#ff7a7a'
+                          }}
+                        >
+                          {c.active !== false ? 'Active' : 'Inactive'}
+                        </button>
                       </td>
                       <td style={{padding:'.75rem 1rem',textAlign:'right'}}>
                         <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',gap:'.4rem'}}>
@@ -909,7 +980,7 @@ export function Admin() {
         {activeTab === 'orders' && (
           <div style={{display:'flex',flexDirection:'column',gap:'1.2rem'}}>
             <div style={{display:'flex',flexWrap:'wrap',gap:'.5rem',background:'#0e1f15',border:'1px solid #1a3323',borderRadius:'10px',padding:'.75rem'}}>
-              {['','processing','shipped','delivered','cancelled'].map((st) => (
+              {['','processing','shipped','delivered','return_requested','returned','cancelled'].map((st) => (
                 <button
                   key={st}
                   onClick={() => setOrderStatusFilter(st)}
@@ -918,7 +989,7 @@ export function Admin() {
                     color: orderStatusFilter===st ? '#0a1208' : '#5a7a67',
                     boxShadow: orderStatusFilter===st ? '0 2px 8px #d5ad6730' : 'none'}}
                 >
-                  {st||'All Orders'}
+                  {st ? st.replace('_', ' ') : 'All Orders'}
                 </button>
               ))}
             </div>
@@ -945,8 +1016,8 @@ export function Admin() {
                         <td style={{padding:'.75rem 1rem',color:'#d5ad67',fontWeight:600}}>₹{o.total?.toLocaleString()}</td>
                         <td style={{padding:'.75rem 1rem'}}>
                           <span style={{padding:'.22rem .6rem',borderRadius:'999px',fontSize:'.68rem',fontWeight:700,
-                            background: o.paymentStatus==='paid' ? '#0d3320' : '#2d1f08',
-                            color: o.paymentStatus==='paid' ? '#4ee07a' : '#e0c060'}}>
+                            background: o.paymentStatus==='paid' ? '#0d3320' : o.paymentStatus==='refunded' ? '#330d0d' : '#2d1f08',
+                            color: o.paymentStatus==='paid' ? '#4ee07a' : o.paymentStatus==='refunded' ? '#ff7a7a' : '#e0c060'}}>
                             {o.paymentStatus}
                           </span>
                         </td>
@@ -956,7 +1027,7 @@ export function Admin() {
                             onChange={(e) => handleUpdateOrderStatus(o._id, e.target.value)}
                             style={{background:'#0a1510',border:'1px solid #1a3323',color:'#a0b8a8',fontSize:'.73rem',padding:'.3rem .5rem',borderRadius:'5px',outline:'none',cursor:'pointer'}}
                           >
-                            {['processing','shipped','delivered','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+                            {['processing','shipped','delivered','return_requested','returned','cancelled'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
                           </select>
                         </td>
                         <td style={{padding:'.75rem 1rem',textAlign:'right'}}>
@@ -1095,8 +1166,8 @@ export function Admin() {
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.9rem'}}>
                     <div>
                       <label style={{display:'block',fontSize:'9px',fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:'#4a7a5e',marginBottom:'.3rem'}}>Category *</label>
-                      <select name="category" required defaultValue={editingProduct?.category?._id||editingProduct?.category||categories[0]?._id||''} style={{width:'100%',padding:'.65rem .8rem',background:'#070f0a',border:'1px solid #1a3323',borderRadius:'7px',color:'#c8d8c0',fontSize:'.82rem',outline:'none'}}>
-                        {categories.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+                      <select name="category" required defaultValue={editingProduct?.category?._id||editingProduct?.category||categories.filter((c) => c.active !== false)[0]?._id||''} style={{width:'100%',padding:'.65rem .8rem',background:'#070f0a',border:'1px solid #1a3323',borderRadius:'7px',color:'#c8d8c0',fontSize:'.82rem',outline:'none'}}>
+                        {categories.filter((c) => c.active !== false).map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
                       </select>
                     </div>
                     {inp('Material','material',{defaultValue:editingProduct?.material||'18K Gold'})}
@@ -1108,7 +1179,11 @@ export function Admin() {
                   </div>
                   <div>
                     <label style={{display:'block',fontSize:'9px',fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:'#4a7a5e',marginBottom:'.3rem'}}>Full Description *</label>
-                    <textarea name="description" required rows={4} defaultValue={editingProduct?.description||''} style={{width:'100%',padding:'.65rem .8rem',background:'#070f0a',border:'1px solid #1a3323',borderRadius:'7px',color:'#c8d8c0',fontSize:'.82rem',outline:'none',resize:'vertical'}}/>
+                    <textarea name="description" required rows={3} defaultValue={editingProduct?.description||''} style={{width:'100%',padding:'.65rem .8rem',background:'#070f0a',border:'1px solid #1a3323',borderRadius:'7px',color:'#c8d8c0',fontSize:'.82rem',outline:'none',resize:'vertical'}}/>
+                  </div>
+                  <div>
+                    <label style={{display:'block',fontSize:'9px',fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:'#4a7a5e',marginBottom:'.3rem'}}>Specifications (1 pair per line, e.g. Metal: 18K Gold)</label>
+                    <textarea name="specifications" rows={4} placeholder={"SKU: AJ-R-001\nMetal: 18K Recycled Gold\nStone: Emerald-cut diamond\nOrigin: Jaipur atelier"} defaultValue={editingProduct?.specifications?.map((s: any) => `${s.key}: ${s.value}`).join('\n')||''} style={{width:'100%',padding:'.65rem .8rem',background:'#070f0a',border:'1px solid #1a3323',borderRadius:'7px',color:'#c8d8c0',fontSize:'.75rem',outline:'none',fontFamily:'monospace',resize:'vertical'}}/>
                   </div>
                   <div style={{display:'flex',gap:'1.5rem',paddingTop:'.25rem'}}>
                     {[['featured','Feature on Homepage',editingProduct?.featured],['active','Active in Storefront',editingProduct?.active!==false]].map(([n,l,d]) => (
@@ -1149,6 +1224,18 @@ export function Admin() {
               <div>
                 <label style={{display:'block',fontSize:'9px',fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:'#4a7a5e',marginBottom:'.3rem'}}>Description</label>
                 <textarea name="description" rows={3} defaultValue={editingCategory?.description||''} style={{width:'100%',padding:'.65rem .8rem',background:'#070f0a',border:'1px solid #1a3323',borderRadius:'7px',color:'#c8d8c0',fontSize:'.82rem',outline:'none',resize:'vertical'}}/>
+              </div>
+              <div key="active" style={{paddingTop:'.25rem'}}>
+                <label style={{display:'flex',alignItems:'center',gap:'.6rem',cursor:'pointer',fontSize:'.82rem',color:'#c8d8c0'}}>
+                  <input
+                    type="checkbox"
+                    name="active"
+                    value="true"
+                    defaultChecked={editingCategory ? editingCategory.active !== false : true}
+                    style={{accentColor:'#d5ad67',width:'16px',height:'16px',cursor:'pointer'}}
+                  />
+                  <span>Active Category (Visible in shop front & product selection)</span>
+                </label>
               </div>
               <div style={{display:'flex',justifyContent:'flex-end',gap:'.75rem',paddingTop:'.75rem',borderTop:'1px solid #1a3323'}}>
                 <button type="button" onClick={() => setIsCategoryModalOpen(false)} style={{padding:'.65rem 1.2rem',background:'#0e1f15',border:'1px solid #1a3323',borderRadius:'7px',color:'#7a9e88',fontSize:'.78rem',cursor:'pointer'}}>Cancel</button>
@@ -1203,6 +1290,46 @@ export function Admin() {
                   ))}
                 </div>
               </div>
+
+              {/* Razorpay & Return details */}
+              {selectedOrder.razorpayPaymentId && (
+                <div style={{background:'#07150c',border:'1px solid #13331c',borderRadius:'8px',padding:'.8rem',fontSize:'.75rem',color:'#4ee07a'}}>
+                  <p style={{margin:'0 0 .2rem',fontWeight:700,color:'#d5ad67'}}>Razorpay Test Settlement</p>
+                  <p style={{margin:'0 0 .15rem'}}>Payment ID: <span style={{fontFamily:'monospace'}}>{selectedOrder.razorpayPaymentId}</span></p>
+                  <p style={{margin:0}}>Order ID: <span style={{fontFamily:'monospace'}}>{selectedOrder.razorpayOrderId}</span></p>
+                </div>
+              )}
+
+              {selectedOrder.returnDetails && (
+                <div style={{background:'#1a1005',border:'1px solid #3d2508',borderRadius:'8px',padding:'.9rem',fontSize:'.78rem'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'.5rem'}}>
+                    <span style={{fontWeight:700,color:'#f3c26b'}}>Return Request Details</span>
+                    <span style={{padding:'.2rem .5rem',borderRadius:'4px',fontSize:'.68rem',fontWeight:700,background:'#2a1805',color:'#e0ab50',textTransform:'uppercase'}}>
+                      Status: {selectedOrder.returnDetails.status}
+                    </span>
+                  </div>
+                  <p style={{margin:'0 0 .2rem',color:'#c8d8c0'}}>Reason: <strong>{selectedOrder.returnDetails.reason}</strong></p>
+                  {selectedOrder.returnDetails.comments && (
+                    <p style={{margin:'0 0 .4rem',color:'#8a9e90',fontSize:'.73rem'}}>Comments: "{selectedOrder.returnDetails.comments}"</p>
+                  )}
+                  {selectedOrder.returnDetails.status === 'pending' && (
+                    <div style={{display:'flex',gap:'.5rem',marginTop:'.6rem'}}>
+                      <button
+                        onClick={() => handleProcessReturn(selectedOrder._id, 'approved')}
+                        style={{padding:'.4rem .8rem',background:'#0d3320',border:'1px solid #1a5c36',borderRadius:'5px',color:'#4ee07a',fontSize:'.72rem',fontWeight:700,cursor:'pointer'}}
+                      >
+                        Approve Return & Refund
+                      </button>
+                      <button
+                        onClick={() => handleProcessReturn(selectedOrder._id, 'rejected')}
+                        style={{padding:'.4rem .8rem',background:'#2d1010',border:'1px solid #4a1c1c',borderRadius:'5px',color:'#ff7a7a',fontSize:'.72rem',fontWeight:700,cursor:'pointer'}}
+                      >
+                        Reject Return
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:'.75rem',borderTop:'1px solid #1a3323'}}>
                 <span style={{fontWeight:600,color:'#c8d8c0'}}>Total Amount</span>

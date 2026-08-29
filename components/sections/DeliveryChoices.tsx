@@ -10,11 +10,13 @@ const panel: React.CSSProperties = {
 };
 
 const tabStyle: React.CSSProperties = {
-  border: "1px solid #b7a68a",
+  border: "1px solid #c8bc9e",
   background: "transparent",
   color: "#1b392d",
-  padding: ".55rem .65rem",
-  fontSize: 11,
+  padding: ".85rem 1rem",
+  fontSize: 12,
+  borderRadius: "10px",
+  transition: "all 0.18s ease",
 };
 
 export function DeliveryChoices() {

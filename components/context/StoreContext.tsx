@@ -34,9 +34,21 @@ interface StoreContextType {
   syncCartAndWishlist: () => Promise<void>;
 }
 
+import { useDispatch } from "react-redux";
+import {
+  apiSlice,
+  useGetMeQuery,
+  useGetCartQuery,
+  useUpdateCartMutation,
+  useGetWishlistQuery,
+  useUpdateWishlistMutation,
+} from "@/lib/redux/api/apiSlice";
+import { invalidateCache } from "@/lib/apiClient";
+
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const dispatch = useDispatch();
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
   const [bag, setBag] = useState(false);
@@ -45,33 +57,60 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [save, setSave] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Sync with MongoDB backend API on mount
+  // RTK Query auto-cached queries & mutations
+  const { data: meData, refetch: refetchMe } = useGetMeQuery();
+  const { data: cartData, refetch: refetchCart } = useGetCartQuery(undefined, { skip: !isAuthenticated });
+  const { data: wishlistData, refetch: refetchWishlist } = useGetWishlistQuery(undefined, { skip: !isAuthenticated });
+
+  const [triggerUpdateCart] = useUpdateCartMutation();
+  const [triggerUpdateWishlist] = useUpdateWishlistMutation();
+
   useEffect(() => {
-    syncCartAndWishlist();
-  }, []);
+    if (meData?.success && meData?.user) {
+      setIsAuthenticated(true);
+    } else if (meData && !meData.success) {
+      setIsAuthenticated(false);
+      setCartItems([]);
+      setSave([]);
+    }
+  }, [meData]);
+
+  useEffect(() => {
+    if (isAuthenticated && cartData?.success && Array.isArray(cartData.items)) {
+      setCartItems(cartData.items);
+    } else if (!isAuthenticated) {
+      setCartItems([]);
+    }
+  }, [isAuthenticated, cartData]);
+
+  useEffect(() => {
+    if (isAuthenticated && wishlistData?.success && Array.isArray(wishlistData.products)) {
+      setSave(wishlistData.products);
+    } else if (!isAuthenticated) {
+      setSave([]);
+    }
+  }, [isAuthenticated, wishlistData]);
 
   const syncCartAndWishlist = async () => {
     try {
-      const meRes = await fetch("/api/auth/me");
-      const meData = await meRes.json();
-
-      if (meData.success && meData.user) {
+      invalidateCache();
+      const meResult = await refetchMe();
+      if (meResult.data?.success && meResult.data?.user) {
         setIsAuthenticated(true);
-        const [cartRes, wishlistRes] = await Promise.all([
-          fetch("/api/cart").then((r) => r.json()),
-          fetch("/api/wishlist").then((r) => r.json()),
-        ]);
-
-        if (cartRes.success && Array.isArray(cartRes.items)) {
-          setCartItems(cartRes.items);
-        } else {
-          setCartItems([]);
-        }
-
-        if (wishlistRes.success && Array.isArray(wishlistRes.products)) {
-          setSave(wishlistRes.products);
-        } else {
-          setSave([]);
+        dispatch(apiSlice.util.invalidateTags(["Cart", "Wishlist"]));
+        try {
+          const [cartRes, wishlistRes] = await Promise.all([
+            fetch("/api/cart").then((r) => r.json()).catch(() => ({ success: false })),
+            fetch("/api/wishlist").then((r) => r.json()).catch(() => ({ success: false })),
+          ]);
+          if (cartRes?.success && Array.isArray(cartRes.items)) {
+            setCartItems(cartRes.items);
+          }
+          if (wishlistRes?.success && Array.isArray(wishlistRes.products)) {
+            setSave(wishlistRes.products);
+          }
+        } catch {
+          // ignore
         }
       } else {
         setIsAuthenticated(false);
@@ -79,7 +118,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setSave([]);
       }
     } catch (err) {
-      console.error("Cart/Wishlist Sync Error:", err);
+      console.error("Sync error:", err);
       setIsAuthenticated(false);
       setCartItems([]);
       setSave([]);
@@ -89,22 +128,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const updateCartState = (newItems: CartItemType[]) => {
     setCartItems(newItems);
     if (isAuthenticated) {
-      fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: newItems }),
-      }).catch(console.error);
+      triggerUpdateCart({ items: newItems }).catch(console.error);
     }
   };
 
   const updateWishlistState = (newSave: string[]) => {
     setSave(newSave);
     if (isAuthenticated) {
-      fetch("/api/wishlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ products: newSave }),
-      }).catch(console.error);
+      triggerUpdateWishlist({ products: newSave }).catch(console.error);
     }
   };
 

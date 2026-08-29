@@ -8,6 +8,9 @@ import { Title } from "@/components/ui/Title";
 import { Card } from "@/components/ui/Card";
 import { Faq } from "@/components/ui/Faq";
 
+import { useMemo } from "react";
+import { useGetProductsQuery, useGetCategoriesQuery } from "@/lib/redux/api/apiSlice";
+
 export function Shop() {
   const searchParams = useSearchParams();
   const categoryQuery = searchParams ? searchParams.get("category") : null;
@@ -17,64 +20,61 @@ export function Shop() {
 
   const [activeFilter, setActiveFilter] = useState(categoryQuery || "All pieces");
   const [list, setList] = useState(false);
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-  }, [categoryQuery, materialQuery, collectionQuery, searchQuery, activeFilter]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      let url = "/api/products?";
-      const params = new URLSearchParams();
-
-      if (activeFilter && activeFilter !== "All pieces") {
-        params.set("category", activeFilter);
-      } else if (categoryQuery) {
-        params.set("category", categoryQuery);
-      }
-
-      if (materialQuery) params.set("material", materialQuery);
-      if (collectionQuery) params.set("collection", collectionQuery);
-      if (searchQuery) params.set("search", searchQuery);
-
-      const [prodRes, catRes] = await Promise.all([
-        fetch(url + params.toString()).then((r) => r.json()),
-        fetch("/api/categories").then((r) => r.json()),
-      ]);
-
-      if (prodRes.success && prodRes.products) {
-        setProducts(prodRes.products);
-      }
-      if (catRes.success && catRes.categories) {
-        setCategories(catRes.categories);
-      }
-    } catch (err) {
-      console.error("Shop fetch error:", err);
-    } finally {
-      setLoading(false);
+    if (categoryQuery) {
+      setActiveFilter(categoryQuery);
     }
-  };
+  }, [categoryQuery]);
+
+  // Construct query string memoized
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (activeFilter && activeFilter !== "All pieces") {
+      params.set("category", activeFilter);
+    }
+    if (materialQuery) params.set("material", materialQuery);
+    if (collectionQuery) params.set("collection", collectionQuery);
+    if (searchQuery) params.set("search", searchQuery);
+    return params.toString();
+  }, [activeFilter, materialQuery, collectionQuery, searchQuery]);
+
+  const { data: prodData, isLoading: prodLoading } = useGetProductsQuery(queryString);
+  const { data: catData } = useGetCategoriesQuery();
+
+  const products = prodData?.success && Array.isArray(prodData.products) ? prodData.products : [];
+  const categories = catData?.success && Array.isArray(catData.categories) ? catData.categories : [];
+  const loading = prodLoading;
+
+  const selectedCatObj = useMemo(
+    () =>
+      categories.find(
+        (c: any) =>
+          (c.slug && c.slug.toLowerCase() === activeFilter.toLowerCase()) ||
+          (c.name && c.name.toLowerCase() === activeFilter.toLowerCase())
+      ),
+    [categories, activeFilter]
+  );
+
+  const activeFilterDisplay = selectedCatObj ? selectedCatObj.name : activeFilter;
 
   return (
     <main className="page cream hero-lead">
       <section className="collection-hero">
         <img src={imgs.gold} alt="Aurelia collection" />
         <div>
-          <p>Collection / {activeFilter}</p>
-          <h1>
+          <p>Collection / {activeFilterDisplay}</p>
+          
+          <h1 className="text-white">
             The modern <i>heirloom.</i>
           </h1>
-          <span>
+          <span className="text-white">
             Designed to hold a place in your life, and then in someone else's.
           </span>
         </div>
       </section>
       <section className="section">
-        <div className="bread">Home / Shop / {activeFilter}</div>
+        <div className="bread">Home / Shop / {activeFilterDisplay}</div>
         <div className="shop-head">
           <Title
             eyebrow="The fine collection"
@@ -95,19 +95,21 @@ export function Shop() {
             >
               All pieces
             </button>
-            {categories.map((cat) => (
-              <button
-                onClick={() => setActiveFilter(cat.slug || cat.name)}
-                className={
-                  activeFilter.toLowerCase() === (cat.slug || cat.name).toLowerCase()
-                    ? "active"
-                    : ""
-                }
-                key={cat._id || cat.name}
-              >
-                {cat.name}
-              </button>
-            ))}
+            {categories.map((cat: any) => {
+              const catVal = cat.slug || cat.name;
+              const isSelected =
+                activeFilter.toLowerCase() === catVal.toLowerCase() ||
+                (cat.name && activeFilter.toLowerCase() === cat.name.toLowerCase());
+              return (
+                <button
+                  onClick={() => setActiveFilter(catVal)}
+                  className={isSelected ? "active" : ""}
+                  key={cat._id || cat.name}
+                >
+                  {cat.name}
+                </button>
+              );
+            })}
           </div>
           <div>
             <button
@@ -135,7 +137,7 @@ export function Shop() {
           </div>
         ) : (
           <div className={list ? "product-list" : "product-grid light-grid"}>
-            {products.map((p) => (
+            {products.map((p: any) => (
               <Card key={p._id || p.id} p={p} />
             ))}
           </div>

@@ -46,22 +46,32 @@ export async function PUT(
     }
 
     const { orderStatus, paymentStatus } = validation.data;
+    const { returnStatus } = body;
+
     await connectDB();
 
-    const update: any = {};
-    if (orderStatus) update.orderStatus = orderStatus;
-    if (paymentStatus) update.paymentStatus = paymentStatus;
-
-    const order = await Order.findByIdAndUpdate(id, update, { new: true }).populate(
-      "user",
-      "name email phone"
-    );
-
-    if (!order) {
+    const orderDoc = await Order.findById(id);
+    if (!orderDoc) {
       return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, order });
+    if (orderStatus) orderDoc.orderStatus = orderStatus;
+    if (paymentStatus) orderDoc.paymentStatus = paymentStatus;
+
+    if (returnStatus && orderDoc.returnDetails) {
+      orderDoc.returnDetails.status = returnStatus;
+      orderDoc.returnDetails.processedAt = new Date();
+
+      if (returnStatus === "approved") {
+        orderDoc.orderStatus = "returned";
+        orderDoc.paymentStatus = "refunded";
+      }
+    }
+
+    await orderDoc.save();
+    await orderDoc.populate("user", "name email phone");
+
+    return NextResponse.json({ success: true, order: orderDoc });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

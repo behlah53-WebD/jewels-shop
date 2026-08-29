@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 
 const panel: React.CSSProperties = {
   maxWidth: 1120,
@@ -8,47 +10,96 @@ const panel: React.CSSProperties = {
   background: "#f5efe3",
 };
 
-export function ProductSpecificationTable({ slug }: { slug?: string }) {
-  const specs: Record<string, [string, string][]> = {
-    solenne: [
-      ["SKU", "AJ-R-001"],
-      ["Metal", "18K recycled gold"],
-      ["Stone", "Emerald-cut laboratory-grown diamond"],
-      ["Setting", "Hand-set bezel and pavé halo"],
-      ["Size", "US 5–8 preview selection"],
-      ["Origin", "Jaipur atelier"],
-      ["Documentation", "Attached to eligible live inventory"],
-    ],
-    celeste: [
-      ["SKU", "AJ-E-002"],
-      ["Metal", "18K recycled yellow gold"],
-      ["Stone", "Pear-cut natural emerald"],
-      ["Setting", "Three-prong claw setting"],
-      ["Size", "One size"],
-      ["Origin", "Jaipur atelier"],
-      ["Documentation", "Attached to eligible live inventory"],
-    ],
-    verdant: [
-      ["SKU", "AJ-B-003"],
-      ["Metal", "18K recycled gold"],
-      ["Stone", "Round brilliant-cut diamonds and emeralds"],
-      ["Setting", "Four-prong basket setting"],
-      ["Size", "6.5 – 7.5 inches preview selection"],
-      ["Origin", "Jaipur atelier"],
-      ["Documentation", "Attached to eligible live inventory"],
-    ],
-    lumina: [
-      ["SKU", "AJ-P-004"],
-      ["Metal", "18K recycled gold"],
-      ["Stone", "Round brilliant-cut diamond"],
-      ["Setting", "Bezel setting on trace chain"],
-      ["Size", "16–18 inches adjustable"],
-      ["Origin", "Jaipur atelier"],
-      ["Documentation", "Attached to eligible live inventory"],
-    ],
-  };
+export function ProductSpecificationTable({
+  slug,
+  product: initialProduct,
+}: {
+  slug?: string;
+  product?: any;
+}) {
+  const [product, setProduct] = useState<any>(initialProduct || null);
 
-  const activeSpecs = specs[slug || ""] || specs.solenne;
+  useEffect(() => {
+    if (initialProduct) {
+      setProduct(initialProduct);
+      return;
+    }
+    if (slug) {
+      fetch(`/api/products/${slug}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.success && data?.product) {
+            setProduct(data.product);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [slug, initialProduct]);
+
+  // Determine active specifications
+  let activeSpecs: [string, string][] = [];
+
+  if (product?.specifications && Array.isArray(product.specifications) && product.specifications.length > 0) {
+    activeSpecs = product.specifications.map((s: any) => [s.key, s.value]);
+  } else if (product) {
+    // Dynamic specifications generated from actual product attributes
+    const categoryName =
+      typeof product.category === "object" && product.category?.name
+        ? product.category.name
+        : product.category || "Fine Jewellery";
+
+    activeSpecs = [
+      ["SKU", product.SKU || `AJ-P-${product._id?.substring(0, 6)?.toUpperCase() || "001"}`],
+      ["Metal & Material", product.material || "18K Recycled Gold"],
+      ["Category", categoryName],
+      ["Collection", product.collectionName || "Aurelia Atelier Collection"],
+      ["Price", `₹${product.price?.toLocaleString() || "0"}`],
+      ["Availability", product.stock > 0 ? `In Stock (${product.stock} available)` : "Made to Order"],
+      ["Origin", "Jaipur Atelier"],
+      ["Certification & Hallmarking", "BIS Hallmarked & Certified Authentic"],
+    ];
+  } else {
+    // Fallback static preview specs if loading
+    const fallbackSpecs: Record<string, [string, string][]> = {
+      solenne: [
+        ["SKU", "AJ-R-001"],
+        ["Metal", "18K recycled gold"],
+        ["Stone", "Emerald-cut laboratory-grown diamond"],
+        ["Setting", "Hand-set bezel and pavé halo"],
+        ["Size", "US 5–8 preview selection"],
+        ["Origin", "Jaipur atelier"],
+        ["Documentation", "Attached to eligible live inventory"],
+      ],
+      celeste: [
+        ["SKU", "AJ-E-002"],
+        ["Metal", "18K recycled yellow gold"],
+        ["Stone", "Pear-cut natural emerald"],
+        ["Setting", "Three-prong claw setting"],
+        ["Size", "One size"],
+        ["Origin", "Jaipur atelier"],
+        ["Documentation", "Attached to eligible live inventory"],
+      ],
+      verdant: [
+        ["SKU", "AJ-B-003"],
+        ["Metal", "18K recycled gold"],
+        ["Stone", "Round brilliant-cut diamonds and emeralds"],
+        ["Setting", "Four-prong basket setting"],
+        ["Size", "6.5 – 7.5 inches preview selection"],
+        ["Origin", "Jaipur atelier"],
+        ["Documentation", "Attached to eligible live inventory"],
+      ],
+      lumina: [
+        ["SKU", "AJ-P-004"],
+        ["Metal", "18K recycled gold"],
+        ["Stone", "Round brilliant-cut diamond"],
+        ["Setting", "Bezel setting on trace chain"],
+        ["Size", "16–18 inches adjustable"],
+        ["Origin", "Jaipur atelier"],
+        ["Documentation", "Attached to eligible live inventory"],
+      ],
+    };
+    activeSpecs = fallbackSpecs[slug || ""] || fallbackSpecs.solenne;
+  }
 
   return (
     <section style={panel}>
@@ -80,8 +131,8 @@ export function ProductSpecificationTable({ slug }: { slug?: string }) {
         }}
       >
         <tbody>
-          {activeSpecs.map(([key, value]) => (
-            <tr key={key}>
+          {activeSpecs.map(([key, value], idx) => (
+            <tr key={idx}>
               <th
                 style={{
                   width: "35%",

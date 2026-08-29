@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     }
 
     await connectDB();
-    let userCart = await Cart.findOne({ user: user._id });
+    let userCart = await Cart.findOne({ user: user._id }).lean();
 
     if (!userCart) {
       userCart = await Cart.create({ user: user._id, items: [] });

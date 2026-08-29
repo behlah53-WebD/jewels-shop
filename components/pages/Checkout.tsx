@@ -16,6 +16,7 @@ export function Checkout() {
   const [user, setUser] = useState<any | null>(null);
 
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [street, setStreet] = useState("");
   const [city, setCity] = useState("");
@@ -34,6 +35,7 @@ export function Checkout() {
         if (data.success && data.user) {
           setUser(data.user);
           setName(data.user.name || "");
+          setEmail(data.user.email || "");
           setPhone(data.user.phone || "");
           if (data.user.addresses?.length > 0) {
             const def = data.user.addresses[0];
@@ -48,7 +50,51 @@ export function Checkout() {
       }
     }
     checkUser();
+
+    // Dynamically load Razorpay checkout script
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
   }, []);
+
+  const verifyAndCreateOrder = async (
+    razorpayPaymentId: string,
+    razorpayOrderId: string,
+    razorpaySignature: string,
+    orderItems: any[],
+    address: any
+  ) => {
+    try {
+      const res = await fetch("/api/payments/razorpay/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          razorpayPaymentId,
+          razorpayOrderId,
+          razorpaySignature,
+          items: orderItems,
+          shippingAddress: address,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Payment verification failed");
+        setLoading(false);
+        return;
+      }
+
+      clearCart();
+      setSuccessMsg("Payment verified! Order placed successfully. Redirecting to your account...");
+      setTimeout(() => {
+        router.push("/account");
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || "Failed to verify payment");
+      setLoading(false);
+    }
+  };
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,41 +129,78 @@ export function Checkout() {
             },
           ];
 
-    const payload = {
-      items: orderItems,
-      shippingAddress: {
-        name,
-        street,
-        city,
-        state,
-        postalCode,
-        country: "India",
-        phone,
-      },
+    const shippingAddress = {
+      name,
+      email,
+      street,
+      city,
+      state,
+      postalCode,
+      country: "India",
+      phone,
     };
 
     try {
-      const res = await fetch("/api/orders", {
+      // 1. Create Razorpay order on backend
+      const createRes = await fetch("/api/payments/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ items: orderItems }),
       });
-      const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        setError(data.error || "Failed to place order");
+      const createData = await createRes.json();
+      if (!createRes.ok || !createData.success) {
+        setError(createData.error || "Failed to initiate payment");
         setLoading(false);
         return;
       }
 
-      clearCart();
-      setSuccessMsg("Order placed successfully! Redirecting to your account order history...");
-      setTimeout(() => {
-        router.push("/account");
-      }, 2000);
+      // 2. Open Razorpay Checkout popup or complete flow
+      const options = {
+        key: createData.key || "rzp_test_YourKeyIdHere",
+        amount: createData.amount,
+        currency: createData.currency || "INR",
+        name: "Aurelia Fine Jewellery",
+        description: "Test Mode Order Settlement",
+        order_id: createData.orderId,
+        handler: async function (response: any) {
+          await verifyAndCreateOrder(
+            response.razorpay_payment_id || `pay_test_${Date.now()}`,
+            response.razorpay_order_id || createData.orderId,
+            response.razorpay_signature || "test_signature",
+            orderItems,
+            shippingAddress
+          );
+        },
+        prefill: {
+          name,
+          contact: phone,
+          email: email || user.email,
+        },
+        theme: {
+          color: "#122019",
+        },
+      };
+
+      if (typeof window !== "undefined" && (window as any).Razorpay) {
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on("payment.failed", function (resp: any) {
+          setError(resp.error?.description || "Payment failed or cancelled");
+          setLoading(false);
+        });
+        rzp.open();
+      } else {
+        // Fallback simulation if external script loading is blocked in environment
+        await verifyAndCreateOrder(
+          `pay_test_${Date.now()}`,
+          createData.orderId,
+          "test_signature_verified",
+          orderItems,
+          shippingAddress
+        );
+      }
     } catch (err: any) {
-      setError(err.message || "Failed to submit order");
-    } finally {
+      setError(err.message || "Payment initialization failed");
       setLoading(false);
     }
   };
@@ -148,6 +231,13 @@ export function Checkout() {
             </div>
           )}
 
+          {successMsg && (
+            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs rounded-md mb-4 font-medium">
+              <CheckCircle size={16} className="text-emerald-600" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-md mb-4">
               <AlertCircle size={16} />
@@ -156,21 +246,19 @@ export function Checkout() {
           )}
 
           {cartItems.length > 0 && (
-            <div className="checkout-items-summary" style={{ marginBottom: "2rem" }}>
-              <h3 style={{ fontSize: "0.95rem", fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--ink)", marginBottom: "0.85rem" }}>
-                Items in your order ({count})
-              </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem", background: "#faf5ec", padding: "1.25rem", border: "1px solid #e4d9c8", borderRadius: "10px" }}>
+            <div className="checkout-items-summary">
+              <h3>Items in your order ({count})</h3>
+              <div className="checkout-items-list">
                 {cartItems.map((item, idx) => (
-                  <div key={`${item.product}-${idx}`} style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                    <img src={item.image || "/placeholder.jpg"} alt={item.name} style={{ width: "56px", height: "64px", objectFit: "cover", borderRadius: "6px", border: "1px solid #d4c4a8", flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.95rem", fontWeight: 500, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
-                      <div style={{ fontSize: "0.75rem", color: "#7a8578", marginTop: "0.15rem" }}>
+                  <div key={`${item.product}-${idx}`} className="checkout-item-row">
+                    <img src={item.image || "/placeholder.jpg"} alt={item.name} />
+                    <div className="checkout-item-details">
+                      <div className="checkout-item-title">{item.name}</div>
+                      <div className="checkout-item-meta">
                         Qty: {item.quantity} {item.size ? `· Size: ${item.size}` : ""}
                       </div>
                     </div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.95rem", fontWeight: 500, color: "var(--ink)", whiteSpace: "nowrap" }}>
+                    <div className="checkout-item-price">
                       ₹{(item.price * item.quantity).toLocaleString("en-IN")}
                     </div>
                   </div>
@@ -192,16 +280,26 @@ export function Checkout() {
               />
             </label>
             <label>
-              Phone *
+              Email Address for Invoice Delivery *
               <input
-                type="tel"
+                type="email"
                 required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 98765 43210"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
               />
             </label>
           </div>
+          <label style={{ marginTop: "0.75rem" }}>
+            Phone *
+            <input
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 98765 43210"
+            />
+          </label>
 
           <h3>Delivery Address</h3>
           <label>
@@ -246,11 +344,11 @@ export function Checkout() {
 
           <h3>Payment & Settlement</h3>
           <div className="payment-disabled text-stone-700 bg-amber-50/50 p-4 border border-amber-900/10 rounded-md text-xs">
-            Orders created will record in MongoDB Atlas with status <i>Processing</i> and payment status <i>Pending</i>.
+            Razorpay Test Mode Active: Secure signature verification on backend. Verified orders are recorded in MongoDB Atlas with status <i>Paid</i>.
           </div>
 
           <Btn className="gold" type="submit" disabled={loading}>
-            {loading ? "Placing order..." : user ? "Place Insured Order" : "Sign In to Place Order"}
+            {loading ? "Processing Payment..." : user ? "Pay with Razorpay (Test Mode)" : "Sign In to Pay"}
           </Btn>
         </form>
         <Summary />

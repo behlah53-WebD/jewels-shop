@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./effects.css";
+import { ReduxProvider } from "@/lib/redux/ReduxProvider";
 import { StoreProvider } from "@/components/context/StoreContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 
@@ -18,9 +19,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <StoreProvider>
-          <MainLayout>{children}</MainLayout>
-        </StoreProvider>
+        <ReduxProvider>
+          <StoreProvider>
+            <MainLayout>{children}</MainLayout>
+          </StoreProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

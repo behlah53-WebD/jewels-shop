@@ -11,10 +11,10 @@ export function About() {
         <img src={imgs.hero} alt="Aurelia founder story" />
         <div>
           <p>Our world</p>
-          <h1>
+          <h1 className="text-white">
             Made with <i>intention.</i>
           </h1>
-          <span>
+          <span className="text-white">
             Aurelia exists for the feeling a well-chosen piece carries long
             after the room has changed.
           </span>

@@ -17,7 +17,7 @@ export async function GET() {
       return NextResponse.json({ success: true, categories: fallbackCategories, isFallback: true });
     }
 
-    const categories = await Category.find({ active: true }).sort({ name: 1 });
+    const categories = await Category.find({ active: { $ne: false } }).sort({ name: 1 }).lean();
     if (categories.length === 0) {
       return NextResponse.json({ success: true, categories: fallbackCategories, isFallback: true });
     }

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ZoomIn, ShoppingBag, Heart, CircleHelp, Sparkles, RefreshCw } from "lucide-react";
+import { ZoomIn, ShoppingBag, Heart, CircleHelp, Sparkles, RefreshCw, ArrowLeft } from "lucide-react";
 import { imgs, products as fallbackProducts } from "@/lib/data";
 import { useStore } from "@/components/context/StoreContext";
 import { Title } from "@/components/ui/Title";
@@ -11,15 +11,19 @@ import { Accordion } from "@/components/ui/Accordion";
 
 import { useRouter } from "next/navigation";
 
+import { useGetProductBySlugQuery } from "@/lib/redux/api/apiSlice";
+
 export function Product({ slug }: { slug?: string }) {
   const router = useRouter();
   const { add, save, toggle, buyNow } = useStore();
 
-  const [p, setP] = useState<any>(fallbackProducts[0]);
-  const [loading, setLoading] = useState(true);
   const [im, setIm] = useState(0);
   const [size, setSize] = useState("6");
   const [gift, setGift] = useState(false);
+
+  const { data: productData, isLoading: loading } = useGetProductBySlugQuery(slug || "", { skip: !slug });
+
+  const p = productData?.success && productData?.product ? productData.product : fallbackProducts[0];
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -28,26 +32,6 @@ export function Product({ slug }: { slug?: string }) {
       router.push("/checkout");
     }
   };
-
-  useEffect(() => {
-    async function fetchProduct() {
-      if (!slug) return;
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/products/${slug}`);
-        const data = await res.json();
-        if (data.success && data.product) {
-          setP(data.product);
-          setIm(0);
-        }
-      } catch (err) {
-        console.error("Failed to load product:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchProduct();
-  }, [slug]);
 
   const pCategory = p.category?.name || p.kind || "Jewellery";
   const pName = p.name || "Solenne Emerald-Cut Ring";
@@ -60,8 +44,39 @@ export function Product({ slug }: { slug?: string }) {
   return (
     <main className="page cream">
       <section className="product-detail">
-        <div className="bread">
-          Home / {pCategory} / {pName}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
+          <div className="bread" style={{ margin: 0 }}>
+            <Link href="/" className="hover:text-amber-800 transition-colors">Home</Link> / <Link href="/shop" className="hover:text-amber-800 transition-colors">{pCategory}</Link> / <span className="font-medium text-stone-900">{pName}</span>
+          </div>
+          <Link
+            href="/shop"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.45rem",
+              padding: "0.45rem 0.95rem",
+              borderRadius: "6px",
+              background: "#163a2b",
+              color: "#f5efe3",
+              border: "1px solid #235440",
+              fontSize: "11px",
+              fontWeight: 700,
+              letterSpacing: ".09em",
+              textTransform: "uppercase",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+              transition: "all 0.2s ease",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "#d5ad67";
+              e.currentTarget.style.color = "#0a100d";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "#163a2b";
+              e.currentTarget.style.color = "#f5efe3";
+            }}
+          >
+            <ArrowLeft size={13} /> Back to Shop
+          </Link>
         </div>
 
         {loading ? (
@@ -174,7 +189,7 @@ export function Product({ slug }: { slug?: string }) {
                 <textarea placeholder="Your personal gift message..." />
               )}
 
-              <Accordion />
+              <Accordion product={p} />
             </div>
           </div>
         )}

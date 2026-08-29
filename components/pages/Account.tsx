@@ -18,27 +18,72 @@ import {
   LogIn,
   UserPlus,
   Save,
+  RefreshCw,
+  RotateCcw,
+  Truck,
+  Package,
+  Copy,
+  Calendar,
+  CreditCard,
+  Hash,
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
+  ExternalLink,
+  Star,
+  ArrowUpRight,
+  Download,
+  FileText,
+  Eye,
+  EyeOff,
+  KeyRound,
+  CheckCircle2,
 } from "lucide-react";
 import { useStore } from "@/components/context/StoreContext";
+import { OtpModal } from "@/components/auth/OtpModal";
+import { PasswordModal } from "@/components/auth/PasswordModal";
+import { useDispatch } from "react-redux";
+import { apiSlice, useGetOrdersQuery } from "@/lib/redux/api/apiSlice";
+import { invalidateCache } from "@/lib/apiClient";
 
 export function Account() {
+  const dispatch = useDispatch();
   const { count, save, syncCartAndWishlist, clearCart } = useStore();
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"orders" | "profile" | "addresses">("orders");
 
+  // RTK Query for user orders
+  const { data: ordersData, isLoading: rtkOrdersLoading, refetch: refetchUserOrders } = useGetOrdersQuery(undefined, { skip: !user });
+  const orders = ordersData?.success && Array.isArray(ordersData.orders) ? ordersData.orders : [];
+  const ordersLoading = rtkOrdersLoading;
+
   // Auth form state
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [authError, setAuthError] = useState("");
+  const [authSuccessMsg, setAuthSuccessMsg] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
-  // User orders state
-  const [orders, setOrders] = useState<any[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
+  // OTP & Password Modal States
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [otpPurpose, setOtpPurpose] = useState<"registration" | "forgot_password">("registration");
+  const [verifiedOtp, setVerifiedOtp] = useState("");
+
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Return modal state
+  const [returnModalOrder, setReturnModalOrder] = useState<any | null>(null);
+  const [returnReason, setReturnReason] = useState("Size fit issue");
+  const [returnComments, setReturnComments] = useState("");
+  const [returnLoading, setReturnLoading] = useState(false);
+  const [returnError, setReturnError] = useState("");
 
   // Profile edit state
   const [editName, setEditName] = useState("");
@@ -65,7 +110,6 @@ export function Account() {
         setUser(data.user);
         setEditName(data.user.name);
         setEditPhone(data.user.phone || "");
-        fetchUserOrders();
       } else {
         setUser(null);
       }
@@ -76,16 +120,35 @@ export function Account() {
     }
   };
 
-  const fetchUserOrders = async () => {
-    setOrdersLoading(true);
+  const handleRequestReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!returnModalOrder) return;
+
+    setReturnLoading(true);
+    setReturnError("");
+
     try {
-      const res = await fetch("/api/orders");
+      const res = await fetch(`/api/orders/${returnModalOrder._id}/return`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: returnReason, comments: returnComments }),
+      });
+
       const data = await res.json();
-      if (data.success) setOrders(data.orders || []);
-    } catch (err) {
-      console.error(err);
+      if (!res.ok || !data.success) {
+        setReturnError(data.error || "Failed to submit return request");
+        setReturnLoading(false);
+        return;
+      }
+
+      setReturnModalOrder(null);
+      setReturnReason("Size fit issue");
+      setReturnComments("");
+      refetchUserOrders();
+    } catch (err: any) {
+      setReturnError(err.message || "Failed to submit return request");
     } finally {
-      setOrdersLoading(false);
+      setReturnLoading(false);
     }
   };
 
@@ -104,11 +167,13 @@ export function Account() {
         setAuthError(data.error || "Login failed");
         return;
       }
+      invalidateCache();
+      dispatch(apiSlice.util.resetApiState());
       setUser(data.user);
       setEditName(data.user.name);
       setEditPhone(data.user.phone || "");
-      fetchUserOrders();
       await syncCartAndWishlist();
+      refetchUserOrders();
     } catch (err: any) {
       setAuthError(err.message || "An unexpected error occurred");
     } finally {
@@ -116,37 +181,135 @@ export function Account() {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRequestRegistrationOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAuthLoading(true);
     setAuthError("");
+    setAuthSuccessMsg("");
+
+    if (!email || !name) {
+      setAuthError("Please fill in your name and email address.");
+      return;
+    }
+
+    setAuthLoading(true);
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, phone }),
+        body: JSON.stringify({ email, purpose: "registration" }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setAuthError(data.error || "Registration failed");
+        setAuthError(data.error || "Failed to send verification code.");
         return;
       }
-      setUser(data.user);
-      setEditName(data.user.name);
-      setEditPhone(data.user.phone || "");
-      fetchUserOrders();
-      await syncCartAndWishlist();
+
+      setOtpPurpose("registration");
+      setOtpModalOpen(true);
     } catch (err: any) {
-      setAuthError(err.message || "An unexpected error occurred");
+      setAuthError(err.message || "An unexpected error occurred.");
     } finally {
       setAuthLoading(false);
+    }
+  };
+
+  const handleRequestForgotPasswordOtp = async () => {
+    setAuthError("");
+    setAuthSuccessMsg("");
+
+    if (!email) {
+      setAuthError("Please enter your email address to reset your password.");
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, purpose: "forgot_password" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setAuthError(data.error || "Failed to send verification code.");
+        return;
+      }
+
+      setOtpPurpose("forgot_password");
+      setOtpModalOpen(true);
+    } catch (err: any) {
+      setAuthError(err.message || "An unexpected error occurred.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    const res = await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, purpose: otpPurpose }),
+    });
+    return await res.json();
+  };
+
+  const handleOtpVerified = (otpCode: string) => {
+    setVerifiedOtp(otpCode);
+    setOtpModalOpen(false);
+    setPasswordModalOpen(true);
+  };
+
+  const handlePasswordModalSubmit = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    if (otpPurpose === "registration") {
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password: newPassword, phone }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          return { success: false, error: data.error || "Registration failed." };
+        }
+        invalidateCache();
+        dispatch(apiSlice.util.resetApiState());
+        setUser(data.user);
+        setEditName(data.user.name);
+        setEditPhone(data.user.phone || "");
+        setPasswordModalOpen(false);
+        await syncCartAndWishlist();
+        refetchUserOrders();
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message || "Registration failed." };
+      }
+    } else {
+      try {
+        const res = await fetch("/api/auth/reset-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, otp: verifiedOtp, newPassword }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          return { success: false, error: data.error || "Failed to reset password." };
+        }
+        setPasswordModalOpen(false);
+        setAuthMode("login");
+        setPassword("");
+        setAuthSuccessMsg("Password updated successfully! Please sign in with your new password.");
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message || "Failed to reset password." };
+      }
     }
   };
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
+    invalidateCache();
+    dispatch(apiSlice.util.resetApiState());
     setUser(null);
-    setOrders([]);
     clearCart();
     await syncCartAndWishlist();
   };
@@ -294,6 +457,12 @@ export function Account() {
             </div>
           )}
 
+          {authSuccessMsg && (
+            <div className="acct-success-banner" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "0.85rem 1rem", borderRadius: "8px", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem" }}>
+              <CheckCircle2 size={16} /><span>{authSuccessMsg}</span>
+            </div>
+          )}
+
           {authMode === "login" ? (
             <form onSubmit={handleLogin} className="acct-form">
               <div className="acct-field">
@@ -306,12 +475,31 @@ export function Account() {
                 </div>
               </div>
               <div className="acct-field">
-                <label htmlFor="acct-pass">Password</label>
-                <div className="acct-input-wrap">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+                  <label htmlFor="acct-pass" style={{ margin: 0 }}>Password</label>
+                  <button
+                    type="button"
+                    onClick={handleRequestForgotPasswordOtp}
+                    disabled={authLoading}
+                    style={{ background: "transparent", border: "none", color: "#8c734b", fontSize: "11px", fontWeight: "600", cursor: "pointer", padding: 0 }}
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+                <div className="acct-input-wrap" style={{ position: "relative" }}>
                   <Lock size={15} className="acct-field-icon" />
-                  <input id="acct-pass" type="password" required value={password}
+                  <input id="acct-pass" type={showLoginPassword ? "text" : "password"} required value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autoComplete="current-password" />
+                    placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autoComplete="current-password"
+                    style={{ paddingRight: "2.5rem" }} />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    style={{ position: "absolute", right: "0.75rem", background: "transparent", border: "none", color: "#8c734b", cursor: "pointer", display: "flex", alignItems: "center" }}
+                    aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                  >
+                    {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
               <button type="submit" disabled={authLoading} className="acct-submit-btn">
@@ -320,11 +508,11 @@ export function Account() {
               </button>
               <p className="acct-switch-hint">
                 New to Aurelia?{" "}
-                <button type="button" onClick={() => setAuthMode("register")}>Create your account &rarr;</button>
+                <button type="button" onClick={() => { setAuthMode("register"); setAuthError(""); setAuthSuccessMsg(""); }}>Create your account &rarr;</button>
               </p>
             </form>
           ) : (
-            <form onSubmit={handleRegister} className="acct-form">
+            <form onSubmit={handleRequestRegistrationOtp} className="acct-form">
               <div className="acct-field">
                 <label htmlFor="acct-name">Full Name</label>
                 <div className="acct-input-wrap">
@@ -352,22 +540,13 @@ export function Account() {
                     placeholder="+91 98765 43210" autoComplete="tel" />
                 </div>
               </div>
-              <div className="acct-field">
-                <label htmlFor="acct-reg-pass">Password</label>
-                <div className="acct-input-wrap">
-                  <Lock size={15} className="acct-field-icon" />
-                  <input id="acct-reg-pass" type="password" required value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 6 characters" autoComplete="new-password" />
-                </div>
-              </div>
               <button type="submit" disabled={authLoading} className="acct-submit-btn">
-                <span>{authLoading ? "Creating account\u2026" : "Complete Registration"}</span>
+                <span>{authLoading ? "Sending Code\u2026" : "Verify Email & Continue"}</span>
                 {!authLoading && <ArrowRight size={16} />}
               </button>
               <p className="acct-switch-hint">
                 Already a patron?{" "}
-                <button type="button" onClick={() => setAuthMode("login")}>Sign in here &rarr;</button>
+                <button type="button" onClick={() => { setAuthMode("login"); setAuthError(""); setAuthSuccessMsg(""); }}>Sign in here &rarr;</button>
               </p>
             </form>
           )}
@@ -379,6 +558,27 @@ export function Account() {
             </Link>
           </div>
         </div>
+
+        {/* OTP Modal */}
+        <OtpModal
+          isOpen={otpModalOpen}
+          email={email}
+          purpose={otpPurpose}
+          onClose={() => setOtpModalOpen(false)}
+          onVerified={handleOtpVerified}
+          onResendOtp={handleResendOtp}
+        />
+
+        {/* Password Setup/Reset Modal */}
+        <PasswordModal
+          isOpen={passwordModalOpen}
+          email={email}
+          title={otpPurpose === "registration" ? "Create Account Password" : "Reset Your Password"}
+          subtitle={otpPurpose === "registration" ? "Choose a secure password to protect your patron account." : "Set a new password for your patron account."}
+          buttonText={otpPurpose === "registration" ? "Complete Account Creation" : "Reset Password"}
+          onClose={() => setPasswordModalOpen(false)}
+          onSubmit={handlePasswordModalSubmit}
+        />
       </main>
     );
   }
@@ -480,60 +680,293 @@ export function Account() {
         {/* ORDERS */}
         {activeTab === "orders" && (
           <div>
+            {/* Section header */}
+            <div className="orders-section-header">
+              <h2 className="orders-section-title">
+                <ClipboardList size={22} />
+                Order History
+              </h2>
+              {orders.length > 0 && (
+                <span className="orders-count-pill">
+                  <ShoppingBag size={11} />
+                  {orders.length} {orders.length === 1 ? "Order" : "Orders"}
+                </span>
+              )}
+            </div>
+
             {ordersLoading ? (
               <p className="dash-loading">Loading your order history&hellip;</p>
             ) : orders.length > 0 ? (
-              orders.map((o) => (
-                <article key={o._id} className="dash-order-card">
-                  <div className="dash-order-head">
-                    <div className="dash-order-meta">
-                      <div className="dash-order-id">Order #{o._id.substring(0, 10).toUpperCase()}</div>
-                      <div className="dash-order-date">
-                        {new Date(o.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+              orders.map((o: any) => {
+                const steps = [
+                  { label: "Order Placed", key: "placed", icon: "✦" },
+                  { label: "Processing", key: "processing", icon: "⚙" },
+                  { label: "Shipped", key: "shipped", icon: "⬆" },
+                  { label: "Delivered", key: "delivered", icon: "✓" },
+                ];
+
+                let currentStepIndex = 1;
+                if (o.orderStatus === "processing") currentStepIndex = 1;
+                if (o.orderStatus === "shipped") currentStepIndex = 2;
+                if (o.orderStatus === "delivered") currentStepIndex = 3;
+
+                const isReturned = o.orderStatus === "returned";
+                const isReturnRequested = o.orderStatus === "return_requested";
+                const isExpanded = expandedOrders.has(o._id);
+                const visibleItems = isExpanded ? o.items : o.items?.slice(0, 2);
+                const hasMoreItems = (o.items?.length || 0) > 2;
+
+                const statusClass = o.orderStatus === "delivered"
+                  ? "status-delivered"
+                  : o.orderStatus === "shipped"
+                  ? "status-shipped"
+                  : o.orderStatus === "processing"
+                  ? "status-processing"
+                  : (isReturned || isReturnRequested)
+                  ? "status-returned"
+                  : "";
+
+                const handleCopyId = () => {
+                  navigator.clipboard.writeText(o._id);
+                  setCopiedId(o._id);
+                  setTimeout(() => setCopiedId(null), 2000);
+                };
+
+                return (
+                  <article key={o._id} className="dash-order-card">
+
+                    {/* ── ORDER HEAD ── */}
+                    <div className="dash-order-head">
+                      <div className="dash-order-meta">
+                        <div className="dash-order-number-row">
+                          <span className="dash-order-hash"><Hash size={10} /></span>
+                          <span className="dash-order-id">{o._id.substring(0, 12).toUpperCase()}</span>
+                          <button
+                            className="dash-order-id-copy"
+                            onClick={handleCopyId}
+                            title="Copy order ID"
+                          >
+                            {copiedId === o._id
+                              ? <CheckCircle size={11} />
+                              : <Copy size={11} />
+                            }
+                          </button>
+                        </div>
+                        <div className="dash-order-date-row">
+                          <span className="dash-order-date">
+                            <Calendar size={11} />
+                            {new Date(o.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                          </span>
+                          {o.items?.length > 0 && (
+                            <span className="dash-order-date" style={{ marginLeft: ".75rem" }}>
+                              <Package size={11} />
+                              {o.items.length} {o.items.length === 1 ? "item" : "items"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="dash-order-badges">
+                        {o.razorpayPaymentId && (
+                          <span className="dash-badge dash-badge-razorpay">
+                            <ShieldCheck size={9} />
+                            Razorpay · {o.razorpayPaymentId.substring(0, 10)}
+                          </span>
+                        )}
+                        <span className={`dash-badge dash-badge-status ${statusClass}`}>
+                          {o.orderStatus === "delivered" && <CheckCircle size={9} />}
+                          {o.orderStatus === "shipped" && <Truck size={9} />}
+                          {o.orderStatus === "processing" && <RefreshCw size={9} />}
+                          {(isReturned || isReturnRequested) && <RotateCcw size={9} />}
+                          {o.orderStatus.replace(/_/g, " ")}
+                        </span>
+                        <span className={`dash-badge dash-badge-pay ${o.paymentStatus === "paid" ? "pay-paid" : ""}`}>
+                          <CreditCard size={9} />
+                          {o.paymentStatus}
+                        </span>
                       </div>
                     </div>
-                    <div className="dash-order-badges">
-                      <span className="dash-badge dash-badge-status">{o.orderStatus}</span>
-                      <span className="dash-badge dash-badge-pay">Payment: {o.paymentStatus}</span>
-                    </div>
-                  </div>
-                  <div className="dash-order-items">
-                    {o.items?.map((item: any, idx: number) => (
-                      <div key={idx} className="dash-order-item">
-                        <img src={item.image || "/placeholder.jpg"} alt={item.name} className="dash-order-item-img" />
-                        <div className="dash-order-item-info">
-                          <div className="dash-order-item-name">{item.name}</div>
-                          <div className="dash-order-item-meta">
-                            Qty: {item.quantity}{item.size ? ` \u00b7 Size: ${item.size}` : ""}
+
+                    {/* ── TIMELINE STEPPER ── */}
+                    {isReturned || isReturnRequested ? (
+                      <div className="order-return-banner">
+                        <div className="order-return-info">
+                          <div className="order-return-title">
+                            <RotateCcw size={13} />
+                            {isReturned ? "Return Processed & Refunded" : "Return Request Pending Review"}
+                          </div>
+                          <div className="order-return-reason">
+                            Reason: {o.returnDetails?.reason || "Customer return request"}
                           </div>
                         </div>
-                        <div className="dash-order-item-price">
-                          &#x20B9;{(item.price * item.quantity).toLocaleString("en-IN")}
+                        <span className="order-return-chip">
+                          {o.orderStatus.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="order-timeline-wrap">
+                        <div className="order-timeline-steps">
+                          {steps.map((step, idx) => {
+                            const isDone = idx <= currentStepIndex;
+                            const isCurrent = idx === currentStepIndex;
+                            return (
+                              <div key={step.key} className="order-step">
+                                {/* Connector line to next step */}
+                                {idx < steps.length - 1 && (
+                                  <div className={`order-step-connector ${idx < currentStepIndex ? "done" : ""}`} />
+                                )}
+                                <div className={`order-step-dot ${isCurrent ? "current" : isDone ? "done" : ""}`}>
+                                  {isDone ? (isCurrent ? idx + 1 : "✓") : idx + 1}
+                                </div>
+                                <span className={`order-step-label ${isCurrent ? "current" : isDone ? "done" : ""}`}>
+                                  {step.label}
+                                </span>
+                                {isCurrent && (
+                                  <span className="order-step-sub">In progress</span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="dash-order-foot">
-                    <div className="dash-order-address">
-                      {o.shippingAddress?.street && <>{o.shippingAddress.street}, {o.shippingAddress.city}</>}
+                    )}
+
+                    {/* ── ORDER SUMMARY BAR ── */}
+                    <div className="order-summary-bar">
+                      <div className="order-summary-cell">
+                        <span className="order-summary-label">Items</span>
+                        <span className="order-summary-value">{o.items?.length || 0}</span>
+                      </div>
+                      <div className="order-summary-cell">
+                        <span className="order-summary-label">Payment</span>
+                        <span className="order-summary-value" style={{ textTransform: "capitalize" }}>{o.paymentMethod || "Online"}</span>
+                      </div>
+                      <div className="order-summary-cell">
+                        <span className="order-summary-label">Total</span>
+                        <span className="order-summary-value">&#x20B9;{o.total?.toLocaleString("en-IN")}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="dash-order-total-label">Order Total</span>
-                      <div className="dash-order-total-amount">&#x20B9;{o.total?.toLocaleString("en-IN")}</div>
+
+                    {/* ── ORDER ITEMS ── */}
+                    <div className="dash-order-items">
+                      {visibleItems?.map((item: any, idx: number) => (
+                        <div key={idx} className="dash-order-item">
+                          <img
+                            src={item.image || "/placeholder.jpg"}
+                            alt={item.name}
+                            className="dash-order-item-img"
+                          />
+                          <div className="dash-order-item-info">
+                            <div className="dash-order-item-name">{item.name}</div>
+                            <div className="dash-order-item-meta">
+                              <span>Qty: {item.quantity}</span>
+                              {item.size && (
+                                <>
+                                  <span className="dash-order-item-meta-sep" />
+                                  <span>Size: {item.size}</span>
+                                </>
+                              )}
+                              {item.price && (
+                                <>
+                                  <span className="dash-order-item-meta-sep" />
+                                  <span className="dash-order-item-badge">
+                                    &#x20B9;{item.price.toLocaleString("en-IN")} ea.
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="dash-order-item-price-col">
+                            <div className="dash-order-item-price">
+                              &#x20B9;{(item.price * item.quantity).toLocaleString("en-IN")}
+                            </div>
+                            <div className="dash-order-item-qty">
+                              {item.quantity > 1 ? `${item.quantity} × ₹${item.price?.toLocaleString("en-IN")}` : ""}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </article>
-              ))
+
+                    {/* Expand/collapse more items */}
+                    {hasMoreItems && (
+                      <button
+                        className="order-expand-btn"
+                        onClick={() => {
+                          const next = new Set(expandedOrders);
+                          if (isExpanded) next.delete(o._id);
+                          else next.add(o._id);
+                          setExpandedOrders(next);
+                        }}
+                      >
+                        {isExpanded
+                          ? <><ChevronUp size={12} /> Show less</>
+                          : <><ChevronDown size={12} /> Show {o.items.length - 2} more item{o.items.length - 2 !== 1 ? "s" : ""}</>
+                        }
+                      </button>
+                    )}
+
+                    {/* ── ORDER FOOTER ── */}
+                    <div className="dash-order-foot">
+                      <div className="dash-order-foot-left">
+                        {o.shippingAddress?.street && (
+                          <div className="dash-order-address">
+                            <MapPin size={12} />
+                            <span>
+                              {o.shippingAddress.street}, {o.shippingAddress.city}
+                              {o.shippingAddress.state ? `, ${o.shippingAddress.state}` : ""}
+                              {o.shippingAddress.postalCode ? ` – ${o.shippingAddress.postalCode}` : ""}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="dash-order-foot-right">
+                        <a
+                          href={`/api/orders/${o._id}/invoice?download=true`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="order-return-btn"
+                          style={{ background: "rgba(213,173,103,0.12)", borderColor: "rgba(213,173,103,0.3)", color: "#8b6d3a" }}
+                          title="View / Download Official Tax Invoice"
+                        >
+                          <Download size={12} /> Download Invoice
+                        </a>
+                        {o.orderStatus === "delivered" && (
+                          <button
+                            onClick={() => setReturnModalOrder(o)}
+                            className="order-return-btn"
+                          >
+                            <RotateCcw size={12} /> Return Order
+                          </button>
+                        )}
+                        <div className="dash-order-total-block">
+                          <span className="dash-order-total-label">Order Total</span>
+                          <div className="dash-order-total-amount">
+                            &#x20B9;{o.total?.toLocaleString("en-IN")}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </article>
+                );
+              })
             ) : (
               <div className="dash-empty">
-                <PackageCheck size={44} />
+                <div className="dash-empty-icon">
+                  <PackageCheck size={32} />
+                </div>
                 <h3>No orders placed yet</h3>
                 <p>When you acquire fine jewellery from Aurelia, your orders and tracking updates will appear here.</p>
-                <Link href="/shop" className="dash-empty-btn">Explore the Collection</Link>
+                <Link href="/shop" className="dash-empty-btn">
+                  <ArrowUpRight size={14} />
+                  Explore the Collection
+                </Link>
               </div>
             )}
           </div>
         )}
+
 
         {/* PROFILE */}
         {activeTab === "profile" && (
@@ -625,6 +1058,127 @@ export function Account() {
           </div>
         )}
       </div>
+
+      {returnModalOrder && (
+        <div className="return-modal-overlay" onClick={() => setReturnModalOrder(null)}>
+          <div className="return-modal-card" onClick={(e) => e.stopPropagation()}>
+            
+            {/* Header */}
+            <div className="return-modal-header">
+              <div className="return-modal-header-left">
+                <div className="return-modal-icon-ring">
+                  <RotateCcw size={18} />
+                </div>
+                <div>
+                  <h3 className="return-modal-title">Return Request</h3>
+                  <div className="return-modal-order-tag">
+                    ORDER #{returnModalOrder._id.substring(0, 10).toUpperCase()}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReturnModalOrder(null)}
+                className="return-modal-close-btn"
+                title="Close window"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="return-modal-body">
+
+              {/* Order Item Preview */}
+              {returnModalOrder.items?.length > 0 && (
+                <div className="return-items-preview">
+                  <img
+                    src={returnModalOrder.items[0].image || "/placeholder.jpg"}
+                    alt={returnModalOrder.items[0].name}
+                    className="return-items-preview-img"
+                  />
+                  <div className="return-items-preview-info">
+                    <div className="return-items-preview-name">
+                      {returnModalOrder.items[0].name}
+                    </div>
+                    <div className="return-items-preview-meta">
+                      {returnModalOrder.items.length > 1 
+                        ? `+ ${returnModalOrder.items.length - 1} other item(s) · ₹${returnModalOrder.total?.toLocaleString("en-IN")}`
+                        : `Qty: ${returnModalOrder.items[0].quantity} · ₹${returnModalOrder.total?.toLocaleString("en-IN")}`
+                      }
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {returnError && (
+                <div className="return-error-box">
+                  <AlertCircle size={15} />
+                  <span>{returnError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleRequestReturn}>
+                <div className="return-field-group">
+                  <label className="return-field-label">
+                    <RotateCcw size={12} /> Return Reason *
+                  </label>
+                  <select
+                    value={returnReason}
+                    onChange={(e) => setReturnReason(e.target.value)}
+                    className="return-select"
+                  >
+                    <option value="Size fit issue">Size fit issue</option>
+                    <option value="Defective or Damaged">Defective or Damaged</option>
+                    <option value="Item different from description">Item different from description</option>
+                    <option value="Changed mind">Changed mind</option>
+                    <option value="Other reason">Other reason</option>
+                  </select>
+                </div>
+
+                <div className="return-field-group">
+                  <label className="return-field-label">
+                    Additional Details (Optional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={returnComments}
+                    onChange={(e) => setReturnComments(e.target.value)}
+                    placeholder="Provide any additional comments about your return request..."
+                    className="return-textarea"
+                  />
+                </div>
+
+                <div className="return-modal-actions">
+                  <button
+                    type="button"
+                    onClick={() => setReturnModalOrder(null)}
+                    className="return-cancel-btn"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={returnLoading}
+                    className="return-submit-btn"
+                  >
+                    {returnLoading ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" /> Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw size={13} /> Confirm Return Request
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

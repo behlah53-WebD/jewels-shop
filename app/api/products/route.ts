@@ -22,8 +22,12 @@ export async function GET(req: NextRequest) {
       // Fallback mode when MongoDB is not connected
       let result = [...fallbackProducts];
       if (categoryParam) {
+        const catLower = categoryParam.toLowerCase();
         result = result.filter(
-          (p) => p.kind.toLowerCase() === categoryParam.toLowerCase()
+          (p) =>
+            p.kind.toLowerCase() === catLower ||
+            catLower.includes(p.kind.toLowerCase()) ||
+            p.kind.toLowerCase().includes(catLower)
         );
       }
       if (searchParam) {
@@ -45,19 +49,39 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const query: any = { active: true };
+    const query: any = { active: { $ne: false } };
 
     if (categoryParam) {
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(categoryParam);
+      const cleanParam = categoryParam.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+
       const categoryObj = await Category.findOne({
         $or: [
+          ...(isObjectId ? [{ _id: categoryParam }] : []),
           { slug: categoryParam.toLowerCase() },
-          { name: { $regex: new RegExp(`^${categoryParam}$`, "i") } },
+          { name: { $regex: new RegExp(`^${cleanParam}$`, "i") } },
         ],
-      });
+      }).lean();
+
       if (categoryObj) {
-        query.category = categoryObj._id;
+        const catIdStr = categoryObj._id.toString();
+        const mongoIdObj = categoryObj._id;
+
+        query.$or = [
+          { category: mongoIdObj },
+          { category: catIdStr },
+          { category: { $regex: new RegExp(`^${cleanParam}$`, "i") } },
+          { category: { $regex: new RegExp(`^${categoryObj.name}$`, "i") } },
+          { category: { $regex: new RegExp(`^${categoryObj.slug}$`, "i") } },
+          { kind: { $regex: new RegExp(categoryObj.name, "i") } },
+          { kind: { $regex: new RegExp(cleanParam, "i") } },
+        ];
       } else {
-        query.category = categoryParam;
+        query.$or = [
+          ...(isObjectId ? [{ category: categoryParam }] : []),
+          { category: { $regex: new RegExp(cleanParam, "i") } },
+          { kind: { $regex: new RegExp(cleanParam, "i") } },
+        ];
       }
     }
 
@@ -90,7 +114,7 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     const [products, total] = await Promise.all([
-      Product.find(query).sort(sort).skip(skip).limit(limit).populate("category", "name slug"),
+      Product.find(query).sort(sort).skip(skip).limit(limit).populate("category", "name slug").lean(),
       Product.countDocuments(query),
     ]);
 

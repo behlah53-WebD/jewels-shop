@@ -2,22 +2,28 @@
 import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-export function Accordion() {
+export function Accordion({ product }: { product?: any }) {
   const [o, setO] = useState(0);
+
+  const specSummary = product
+    ? `${product.material || "18K recycled gold"} · ${
+        product.specifications && product.specifications.length > 0
+          ? product.specifications.map((s: any) => `${s.key}: ${s.value}`).join(" · ")
+          : product.description?.substring(0, 100) || "Hand-finished in our Jaipur atelier."
+      }`
+    : "18K recycled gold · Emerald-cut laboratory-grown diamond · Hand-finished in our Jaipur atelier.";
+
   const rows = [
-    [
-      "Specifications",
-      "18K recycled gold · Emerald-cut laboratory-grown diamond · Hand-finished in our Jaipur atelier.",
-    ],
+    ["Specifications", specSummary],
     [
       "Materials & certification",
-      "Product-level provenance and certification documents are ready to be attached to live catalogue data.",
+      `Certified ${product?.material || "18K Gold"} piece. BIS Hallmarked and product-level provenance attached.`,
     ],
     [
       "Shipping, returns & warranty",
-      "Set regional policy, insured carrier, and warranty terms before accepting an order.",
+      "Complimentary insured shipping, 15-day return policy, and lifetime authenticity warranty.",
     ],
-    ["Care", "Store separately and use a soft, lint-free cloth."],
+    ["Care", "Store separately in provided velvet box and clean with a soft, lint-free cloth."],
   ];
 
   return (

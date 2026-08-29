@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ success: true, content: defaultSiteContent, isFallback: true });
     }
 
-    let content = await SiteContent.findOne();
+    let content = await SiteContent.findOne().lean();
     if (!content) {
       return NextResponse.json({ success: true, content: defaultSiteContent, isFallback: true });
     }

@@ -83,6 +83,7 @@ export const OrderCreateSchema = z.object({
     .min(1, "Order must contain at least one item"),
   shippingAddress: z.object({
     name: z.string().min(1, "Recipient name is required"),
+    email: z.string().email("Invalid email address").optional().or(z.literal("")),
     street: z.string().min(1, "Street address is required"),
     city: z.string().min(1, "City is required"),
     state: z.string().min(1, "State is required"),
@@ -93,6 +94,6 @@ export const OrderCreateSchema = z.object({
 });
 
 export const OrderStatusUpdateSchema = z.object({
-  orderStatus: z.enum(["processing", "shipped", "delivered", "cancelled"]).optional(),
-  paymentStatus: z.enum(["pending", "paid", "failed"]).optional(),
+  orderStatus: z.enum(["processing", "shipped", "delivered", "cancelled", "return_requested", "returned"]).optional(),
+  paymentStatus: z.enum(["pending", "paid", "failed", "refunded"]).optional(),
 });

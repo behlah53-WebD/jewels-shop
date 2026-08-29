@@ -41,20 +41,20 @@ export function Header() {
         </button>
         <Logo />
         <nav>
-          <Link href="/shop">Shop</Link>
-          <Link href="/shop?collection=bridal">Collections</Link>
-          <Link href="/contact">Bespoke</Link>
-          <Link href="/journal">Journal</Link>
-          <Link href="/about">Our world</Link>
+          <Link href="/shop" prefetch={true}>Shop</Link>
+          <Link href="/shop?collection=bridal" prefetch={true}>Collections</Link>
+          <Link href="/contact" prefetch={true}>Bespoke</Link>
+          <Link href="/journal" prefetch={true}>Journal</Link>
+          <Link href="/about" prefetch={true}>Our world</Link>
         </nav>
         <div className="header-actions">
           <button className="icon" onClick={() => setSearch(true)} aria-label="Open search box">
             <Search />
           </button>
-          <Link className="icon" href="/account" aria-label="Account">
+          <Link className="icon" href="/account" prefetch={true} aria-label="Account">
             <UserRound />
           </Link>
-          <Link className="icon" href="/wishlist" aria-label="Wishlist">
+          <Link className="icon" href="/wishlist" prefetch={true} aria-label="Wishlist">
             <Heart />
             <small>{save.length}</small>
           </Link>

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     }
 
     await connectDB();
-    let userWishlist = await Wishlist.findOne({ user: user._id });
+    let userWishlist = await Wishlist.findOne({ user: user._id }).lean();
 
     if (!userWishlist) {
       userWishlist = await Wishlist.create({ user: user._id, products: [] });

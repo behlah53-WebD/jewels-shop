@@ -20,39 +20,22 @@ import { JournalTeaser } from "@/components/ui/JournalTeaser";
 import { Faq } from "@/components/ui/Faq";
 import { Newsletter } from "@/components/ui/Newsletter";
 
+import {
+  useGetSiteContentQuery,
+  useGetProductsQuery,
+  useGetCategoriesQuery,
+} from "@/lib/redux/api/apiSlice";
+
 export function Home() {
   const [quiz, setQuiz] = useState(0);
-  const [siteContent, setSiteContent] = useState<any>(defaultSiteContent);
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [contentRes, prodRes, catRes] = await Promise.all([
-          fetch("/api/site-content").then((r) => r.json()),
-          fetch("/api/products?featured=true&limit=8").then((r) => r.json()),
-          fetch("/api/categories").then((r) => r.json()),
-        ]);
+  const { data: contentData } = useGetSiteContentQuery();
+  const { data: prodData } = useGetProductsQuery("featured=true&limit=8");
+  const { data: catData } = useGetCategoriesQuery();
 
-        if (contentRes.success && contentRes.content) {
-          setSiteContent(contentRes.content);
-        }
-        if (prodRes.success && prodRes.products) {
-          setProducts(prodRes.products);
-        }
-        if (catRes.success && catRes.categories) {
-          setCategories(catRes.categories);
-        }
-      } catch (err) {
-        console.error("Failed to load storefront data:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
-  }, []);
+  const siteContent = contentData?.success && contentData?.content ? contentData.content : defaultSiteContent;
+  const products = prodData?.success && Array.isArray(prodData.products) ? prodData.products : [];
+  const categories = catData?.success && Array.isArray(catData.categories) ? catData.categories : [];
 
   const hero = siteContent.hero || defaultSiteContent.hero;
   const trustRow = siteContent.trustRow || defaultSiteContent.trustRow;
@@ -112,22 +95,29 @@ export function Home() {
           }
         />
         <div className="category-grid">
-          {(categories.length > 0 ? categories : [
-            { name: "Rings", slug: "rings", image: imgs.ring },
-            { name: "Earrings", slug: "earrings", image: imgs.emerald },
-            { name: "Bracelets", slug: "bracelets", image: imgs.gold },
-            { name: "Pendants", slug: "pendants", image: imgs.pearl },
-          ]).slice(0, 4).map((c, i) => (
-            <Link
-              href={`/shop?category=${c.slug}`}
-              className={`category ${i === 0 ? "tall" : i === 3 ? "wide" : ""}`}
-              key={c.name}
-            >
-              <img src={c.image || imgs.ring} alt={`${c.name} collection`} />
-              <b>{c.name}</b>
-              <span>Explore →</span>
-            </Link>
-          ))}
+          {(() => {
+            const list = categories.length > 0 ? categories : [
+              { name: "Rings", slug: "rings", image: imgs.ring },
+              { name: "Earrings", slug: "earrings", image: imgs.emerald },
+              { name: "Bracelets", slug: "bracelets", image: imgs.gold },
+              { name: "Pendants", slug: "pendants", image: imgs.pearl },
+            ];
+            return list.map((c: any, i: number) => {
+              const isTall = i === 0 && list.length > 2;
+              const isWide = (list.length % 2 !== 0 && i === list.length - 1 && i !== 0);
+              return (
+                <Link
+                  href={`/shop?category=${encodeURIComponent(c.slug || c.name)}`}
+                  className={`category ${isTall ? "tall" : isWide ? "wide" : ""}`}
+                  key={c._id || c.name}
+                >
+                  <img src={c.image || imgs.ring} alt={`${c.name} collection`} />
+                  <b>{c.name}</b>
+                  <span>Explore →</span>
+                </Link>
+              );
+            });
+          })()}
         </div>
       </section>
 
@@ -143,7 +133,7 @@ export function Home() {
         />
         <div className="product-grid">
           {products.length > 0 ? (
-            products.map((p) => <Card key={p._id || p.id} p={p} />)
+            products.map((p: any) => <Card key={p._id || p.id} p={p} />)
           ) : (
             <p className="text-stone-400 text-center py-8">Loading collection pieces...</p>
           )}

@@ -19,7 +19,7 @@ export async function GET(
     const product = await Product.findOne({
       $or: [{ slug: slug.toLowerCase() }, { SKU: slug }],
       active: true,
-    }).populate("category", "name slug");
+    }).populate("category", "name slug").lean();
 
     if (!product) {
       // Try fallback if not found in DB
