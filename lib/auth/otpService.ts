@@ -1,7 +1,7 @@
-import nodemailer from "nodemailer";
 import { connectDB } from "@/lib/db/connect";
 import { Otp } from "@/lib/models/Otp";
 import { User } from "@/lib/models/User";
+import { getSmtpTransporter } from "@/lib/email/mailer";
 
 export function generate6DigitOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -9,31 +9,13 @@ export function generate6DigitOtp(): string {
 
 export async function sendOtpEmail(email: string, otp: string, purpose: "registration" | "forgot_password"): Promise<boolean> {
   try {
-    const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-    const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
-    const smtpSecure = process.env.SMTP_SECURE === "true";
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const smtpFrom = process.env.SMTP_FROM || `"Aurelia Fine Jewellery" <${smtpUser || "noreply@aureliajewels.com"}>`;
+    const { transporter, smtpFrom, isConfigured } = getSmtpTransporter();
 
     // Logging for development fallback when SMTP credentials are placeholders
-    if (!smtpUser || !smtpPass || smtpUser.includes("your-email") || smtpPass.includes("your-app-password")) {
-      console.log(`ℹ [OTP Service] Simulated Email Delivery to ${email}: OTP Code is ${otp} (${purpose})`);
+    if (!isConfigured) {
+      console.log(`ℹ [OTP Service] SMTP credentials not configured or using placeholders. Simulated OTP dispatch for ${email} (${purpose})`);
       return true;
     }
-
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
 
     const isReg = purpose === "registration";
     const title = isReg ? "Verify Your Patron Account" : "Reset Your Aurelia Account Password";

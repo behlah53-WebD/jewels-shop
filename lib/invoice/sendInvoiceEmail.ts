@@ -1,35 +1,17 @@
-import nodemailer from "nodemailer";
 import { generateInvoiceHTML, generateEmailBodyHTML } from "./invoiceGenerator";
 import { Order } from "@/lib/models/Order";
 import { connectDB } from "@/lib/db/connect";
+import { getSmtpTransporter } from "@/lib/email/mailer";
 
 export async function sendInvoiceEmail(order: any): Promise<boolean> {
   try {
-    const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-    const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
-    const smtpSecure = process.env.SMTP_SECURE === "true";
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const smtpFrom = process.env.SMTP_FROM || `"Aurelia Fine Jewellery" <${smtpUser || "noreply@aureliajewels.com"}>`;
+    const { transporter, smtpFrom, isConfigured } = getSmtpTransporter();
 
     // Check if valid credentials exist
-    if (!smtpUser || !smtpPass || smtpUser.includes("your-email") || smtpPass.includes("your-app-password")) {
+    if (!isConfigured) {
       console.log("ℹ [Invoice Email] SMTP credentials not set or using placeholders. Email skipped for order:", order._id);
       return false;
     }
-
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
 
     const invoiceNum = order.invoice?.invoiceNumber || `AUR-INV-${order._id.toString().substring(0, 8).toUpperCase()}`;
     const recipientEmail = order.shippingAddress?.email || order.invoice?.customerEmail;

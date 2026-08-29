@@ -126,10 +126,12 @@ export async function POST(req: NextRequest) {
       invoice: invoiceData,
     });
 
-    // Trigger async invoice email delivery (non-blocking)
-    sendInvoiceEmail(order.toObject ? order.toObject() : order).catch((emailErr) => {
-      console.error("Async invoice email trigger error:", emailErr);
-    });
+    // Trigger invoice email delivery (awaited for serverless safety)
+    try {
+      await sendInvoiceEmail(order.toObject ? order.toObject() : order);
+    } catch (emailErr) {
+      console.error("Invoice email delivery error:", emailErr);
+    }
 
     return NextResponse.json({ success: true, order }, { status: 201 });
   } catch (error: any) {
