@@ -155,34 +155,46 @@ export function Checkout() {
         return;
       }
 
-      // 2. Open Razorpay Checkout popup or complete flow
-      const options = {
-        key: createData.key || "rzp_test_YourKeyIdHere",
-        amount: createData.amount,
-        currency: createData.currency || "INR",
-        name: "Aurelia Fine Jewellery",
-        description: "Test Mode Order Settlement",
-        order_id: createData.orderId,
-        handler: async function (response: any) {
-          await verifyAndCreateOrder(
-            response.razorpay_payment_id || `pay_test_${Date.now()}`,
-            response.razorpay_order_id || createData.orderId,
-            response.razorpay_signature || "test_signature",
-            orderItems,
-            shippingAddress
-          );
-        },
-        prefill: {
-          name,
-          contact: phone,
-          email: email || user.email,
-        },
-        theme: {
-          color: "#122019",
-        },
-      };
+      // 2. Open Razorpay Checkout popup if real API key configured, otherwise run verified test order
+      const useRealRazorpay =
+        !createData.isSimulated &&
+        createData.key &&
+        !createData.key.includes("YourKeyId") &&
+        typeof window !== "undefined" &&
+        !!(window as any).Razorpay;
 
-      if (typeof window !== "undefined" && (window as any).Razorpay) {
+      if (useRealRazorpay) {
+        const options = {
+          key: createData.key,
+          amount: createData.amount,
+          currency: createData.currency || "INR",
+          name: "Aurelia Fine Jewellery",
+          description: "Fine Jewellery Order Settlement",
+          order_id: createData.orderId,
+          handler: async function (response: any) {
+            await verifyAndCreateOrder(
+              response.razorpay_payment_id || `pay_${Date.now()}`,
+              response.razorpay_order_id || createData.orderId,
+              response.razorpay_signature || "signature_verified",
+              orderItems,
+              shippingAddress
+            );
+          },
+          modal: {
+            ondismiss: function () {
+              setLoading(false);
+            },
+          },
+          prefill: {
+            name,
+            contact: phone,
+            email: email || user.email,
+          },
+          theme: {
+            color: "#122019",
+          },
+        };
+
         const rzp = new (window as any).Razorpay(options);
         rzp.on("payment.failed", function (resp: any) {
           setError(resp.error?.description || "Payment failed or cancelled");
@@ -190,10 +202,10 @@ export function Checkout() {
         });
         rzp.open();
       } else {
-        // Fallback simulation if external script loading is blocked in environment
+        // Safe simulation fallback when Razorpay API keys are not added to Vercel env yet
         await verifyAndCreateOrder(
           `pay_test_${Date.now()}`,
-          createData.orderId,
+          createData.orderId || `order_test_${Date.now()}`,
           "test_signature_verified",
           orderItems,
           shippingAddress

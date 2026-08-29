@@ -46,13 +46,21 @@ export async function POST(req: NextRequest) {
     const totalAmount = subtotal + shippingCost;
     const amountInPaise = Math.round(totalAmount * 100);
 
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_YourKeyIdHere";
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || "YourKeySecretHere";
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || "";
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
 
     let razorpayOrderId = `order_test_${Date.now()}`;
+    let isSimulated = true;
 
-    // If key is configured (not default placeholder), initialize Razorpay SDK
-    if (keyId && keySecret && !keyId.includes("YourKeyIdHere")) {
+    // Initialize Razorpay SDK if real valid keys are configured
+    const isRealKey =
+      keyId &&
+      keySecret &&
+      !keyId.includes("YourKeyId") &&
+      !keySecret.includes("YourKeySecret") &&
+      (keyId.startsWith("rzp_test_") || keyId.startsWith("rzp_live_"));
+
+    if (isRealKey) {
       try {
         const instance = new Razorpay({
           key_id: keyId,
@@ -67,9 +75,14 @@ export async function POST(req: NextRequest) {
             userId: String(auth.user._id),
           },
         });
-        razorpayOrderId = rzpOrder.id;
+
+        if (rzpOrder && rzpOrder.id) {
+          razorpayOrderId = rzpOrder.id;
+          isSimulated = false;
+        }
       } catch (err: any) {
         console.warn("Razorpay API call warning (falling back to test order ID for simulation):", err?.message || err);
+        isSimulated = true;
       }
     }
 
@@ -79,6 +92,7 @@ export async function POST(req: NextRequest) {
       amount: amountInPaise,
       currency: "INR",
       key: keyId,
+      isSimulated,
     });
   } catch (error: any) {
     console.error("Create Razorpay Order Error:", error);
