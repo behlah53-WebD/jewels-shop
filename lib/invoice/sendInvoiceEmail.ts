@@ -1,11 +1,11 @@
 import { generateInvoiceHTML, generateEmailBodyHTML } from "./invoiceGenerator";
 import { Order } from "@/lib/models/Order";
 import { connectDB } from "@/lib/db/connect";
-import { getSmtpTransporter } from "@/lib/email/mailer";
+import { sendMailWithFallback, getSmtpConfig } from "@/lib/email/mailer";
 
 export async function sendInvoiceEmail(order: any): Promise<boolean> {
   try {
-    const { transporter, smtpFrom, isConfigured } = getSmtpTransporter();
+    const { isConfigured } = getSmtpConfig();
 
     // Check if valid credentials exist
     if (!isConfigured) {
@@ -28,7 +28,6 @@ export async function sendInvoiceEmail(order: any): Promise<boolean> {
     const invoiceDocument = generateInvoiceHTML(order, true);
 
     const mailOptions = {
-      from: smtpFrom,
       to: recipientEmail,
       subject: `Tax Invoice #${invoiceNum} - Aurelia Fine Jewellery Order Confirmation`,
       html: emailBody,
@@ -41,8 +40,13 @@ export async function sendInvoiceEmail(order: any): Promise<boolean> {
       ],
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log("✅ [Invoice Email] Invoice email successfully sent with attachment to:", recipientEmail, "MessageID:", info.messageId);
+    const result = await sendMailWithFallback(mailOptions);
+
+    if (!result.success) {
+      throw new Error(result.error || "Invoice email sending failed");
+    }
+
+    console.log("✅ [Invoice Email] Invoice email successfully sent with attachment to:", recipientEmail, "MessageID:", result.messageId);
 
     // Update email status in DB
     try {

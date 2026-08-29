@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db/connect";
 import { Otp } from "@/lib/models/Otp";
 import { User } from "@/lib/models/User";
-import { getSmtpTransporter } from "@/lib/email/mailer";
+import { sendMailWithFallback, getSmtpConfig } from "@/lib/email/mailer";
 
 export function generate6DigitOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -9,7 +9,7 @@ export function generate6DigitOtp(): string {
 
 export async function sendOtpEmail(email: string, otp: string, purpose: "registration" | "forgot_password"): Promise<boolean> {
   try {
-    const { transporter, smtpFrom, isConfigured } = getSmtpTransporter();
+    const { isConfigured } = getSmtpConfig();
 
     // Logging for development fallback when SMTP credentials are placeholders
     if (!isConfigured) {
@@ -66,14 +66,13 @@ export async function sendOtpEmail(email: string, otp: string, purpose: "registr
     </html>
     `;
 
-    await transporter.sendMail({
-      from: smtpFrom,
+    const result = await sendMailWithFallback({
       to: email,
       subject: isReg ? "Your Aurelia Verification Code" : "Your Password Reset Code — Aurelia",
       html: htmlContent,
     });
 
-    return true;
+    return result.success;
   } catch (error) {
     console.error("Failed to send OTP email:", error);
     return false;
