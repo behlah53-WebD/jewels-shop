@@ -50,60 +50,53 @@ export async function POST(req: NextRequest) {
     const totalAmount = Math.max(subtotal + shippingCost, 1);
     const amountInPaise = Math.round(totalAmount * 100);
 
-    const keyId = (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || "").trim();
-    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
+    const keyId = (
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      process.env.RAZORPAY_KEY_ID ||
+      "rzp_test_TLHDYpFoH2gR3Y"
+    ).trim();
 
-    let razorpayOrderId = `order_test_${Date.now()}`;
-    let isSimulated = true;
+    const keySecret = (
+      process.env.RAZORPAY_KEY_SECRET ||
+      "gzMdE6isU2WprTvhJeyHlsGG"
+    ).trim();
 
-    // Initialize Razorpay if real valid keys are configured
-    const isRealKey =
-      keyId &&
-      keySecret &&
-      !keyId.includes("YourKeyId") &&
-      !keySecret.includes("YourKeySecret") &&
-      (keyId.startsWith("rzp_test_") || keyId.startsWith("rzp_live_"));
+    const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+    const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        amount: amountInPaise,
+        currency: "INR",
+        receipt: `receipt_${Date.now()}`,
+        notes: {
+          userId: String(auth.user._id),
+        },
+      }),
+    });
 
-    if (isRealKey) {
-      try {
-        const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
-        const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: authHeader,
-          },
-          body: JSON.stringify({
-            amount: amountInPaise,
-            currency: "INR",
-            receipt: `receipt_${Date.now()}`,
-            notes: {
-              userId: String(auth.user._id),
-            },
-          }),
-        });
+    const rzpData = await rzpRes.json();
 
-        const rzpData = await rzpRes.json();
-        if (rzpRes.ok && rzpData && rzpData.id) {
-          razorpayOrderId = rzpData.id;
-          isSimulated = false;
-        } else {
-          console.error("Razorpay Order API response error:", rzpData);
-          isSimulated = true;
-        }
-      } catch (err: any) {
-        console.error("Razorpay API call exception:", err?.message || err);
-        isSimulated = true;
-      }
+    if (!rzpRes.ok || !rzpData || !rzpData.id) {
+      console.error("Razorpay Order API error response:", rzpData);
+      return NextResponse.json(
+        {
+          success: false,
+          error: rzpData?.error?.description || "Failed to create Razorpay payment order. Please verify API keys.",
+        },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      orderId: razorpayOrderId,
+      orderId: rzpData.id,
       amount: amountInPaise,
       currency: "INR",
       key: keyId,
-      isSimulated,
     });
   } catch (error: any) {
     console.error("Create Razorpay Order Error:", error);

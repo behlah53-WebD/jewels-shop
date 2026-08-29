@@ -171,64 +171,57 @@ export function Checkout() {
 
       const createData = await createRes.json();
       if (!createRes.ok || !createData.success) {
-        setError(createData.error || "Failed to initiate payment");
+        setError(createData.error || "Failed to initiate payment. Please check credentials.");
         setLoading(false);
         return;
       }
 
-      // 2. Open Razorpay Checkout popup if real API key configured
-      if (!createData.isSimulated && createData.key && !createData.key.includes("YourKeyId")) {
-        const isScriptLoaded = await loadRazorpayScript();
-        if (isScriptLoaded && typeof window !== "undefined" && (window as any).Razorpay) {
-          const options = {
-            key: createData.key,
-            amount: createData.amount,
-            currency: createData.currency || "INR",
-            name: "Aurelia Fine Jewellery",
-            description: "Fine Jewellery Order Settlement",
-            order_id: createData.orderId,
-            handler: async function (response: any) {
-              await verifyAndCreateOrder(
-                response.razorpay_payment_id || `pay_${Date.now()}`,
-                response.razorpay_order_id || createData.orderId,
-                response.razorpay_signature || "signature_verified",
-                orderItems,
-                shippingAddress
-              );
-            },
-            modal: {
-              ondismiss: function () {
-                setLoading(false);
-              },
-            },
-            prefill: {
-              name,
-              contact: phone,
-              email: email || user.email,
-            },
-            theme: {
-              color: "#122019",
-            },
-          };
-
-          const rzp = new (window as any).Razorpay(options);
-          rzp.on("payment.failed", function (resp: any) {
-            setError(resp.error?.description || "Payment failed or cancelled");
-            setLoading(false);
-          });
-          rzp.open();
-          return;
-        }
+      // 2. Ensure Razorpay checkout script is loaded
+      const isScriptLoaded = await loadRazorpayScript();
+      if (!isScriptLoaded || typeof window === "undefined" || !(window as any).Razorpay) {
+        setError("Unable to load Razorpay payment gateway. Please check your internet connection and try again.");
+        setLoading(false);
+        return;
       }
 
-      // Fallback simulation if external script loading is blocked or keys omitted
-      await verifyAndCreateOrder(
-        `pay_test_${Date.now()}`,
-        createData.orderId || `order_test_${Date.now()}`,
-        "test_signature_verified",
-        orderItems,
-        shippingAddress
-      );
+      // 3. Open the Razorpay Payment Window Modal
+      const options = {
+        key: createData.key || "rzp_test_TLHDYpFoH2gR3Y",
+        amount: createData.amount,
+        currency: createData.currency || "INR",
+        name: "Aurelia Fine Jewellery",
+        description: "Fine Jewellery Order Settlement",
+        order_id: createData.orderId,
+        handler: async function (response: any) {
+          await verifyAndCreateOrder(
+            response.razorpay_payment_id,
+            response.razorpay_order_id,
+            response.razorpay_signature,
+            orderItems,
+            shippingAddress
+          );
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+          },
+        },
+        prefill: {
+          name,
+          contact: phone,
+          email: email || user.email,
+        },
+        theme: {
+          color: "#122019",
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", function (resp: any) {
+        setError(resp.error?.description || "Payment failed or was cancelled");
+        setLoading(false);
+      });
+      rzp.open();
     } catch (err: any) {
       setError(err.message || "Payment initialization failed");
       setLoading(false);
