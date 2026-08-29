@@ -684,7 +684,7 @@ export function Account() {
             <div className="orders-section-header">
               <h2 className="orders-section-title">
                 <ClipboardList size={22} />
-                Order History
+                Order History!
               </h2>
               {orders.length > 0 && (
                 <span className="orders-count-pill">
