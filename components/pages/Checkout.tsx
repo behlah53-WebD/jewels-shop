@@ -10,6 +10,32 @@ import { Btn } from "@/components/ui/Btn";
 import { Summary } from "@/components/ui/Summary";
 import { products as fallbackProducts } from "@/lib/data";
 
+const loadRazorpayScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+    if ((window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(true));
+      existing.addEventListener("error", () => resolve(false));
+      setTimeout(() => resolve(!!(window as any).Razorpay), 1500);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 export function Checkout() {
   const router = useRouter();
   const { count, cartItems, clearCart } = useStore();
@@ -50,12 +76,7 @@ export function Checkout() {
       }
     }
     checkUser();
-
-    // Dynamically load Razorpay checkout script
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    document.body.appendChild(script);
+    loadRazorpayScript();
   }, []);
 
   const verifyAndCreateOrder = async (
@@ -113,8 +134,8 @@ export function Checkout() {
         ? cartItems.map((item) => ({
             product: item.product,
             name: item.name,
-            price: item.price,
-            quantity: item.quantity,
+            price: typeof item.price === "number" ? item.price : parseFloat(String(item.price || 0)) || 0,
+            quantity: typeof item.quantity === "number" ? item.quantity : parseInt(String(item.quantity || 1), 10) || 1,
             image: item.image,
             size: item.size || "6",
           }))
@@ -155,62 +176,59 @@ export function Checkout() {
         return;
       }
 
-      // 2. Open Razorpay Checkout popup if real API key configured, otherwise run verified test order
-      const useRealRazorpay =
-        !createData.isSimulated &&
-        createData.key &&
-        !createData.key.includes("YourKeyId") &&
-        typeof window !== "undefined" &&
-        !!(window as any).Razorpay;
-
-      if (useRealRazorpay) {
-        const options = {
-          key: createData.key,
-          amount: createData.amount,
-          currency: createData.currency || "INR",
-          name: "Aurelia Fine Jewellery",
-          description: "Fine Jewellery Order Settlement",
-          order_id: createData.orderId,
-          handler: async function (response: any) {
-            await verifyAndCreateOrder(
-              response.razorpay_payment_id || `pay_${Date.now()}`,
-              response.razorpay_order_id || createData.orderId,
-              response.razorpay_signature || "signature_verified",
-              orderItems,
-              shippingAddress
-            );
-          },
-          modal: {
-            ondismiss: function () {
-              setLoading(false);
+      // 2. Open Razorpay Checkout popup if real API key configured
+      if (!createData.isSimulated && createData.key && !createData.key.includes("YourKeyId")) {
+        const isScriptLoaded = await loadRazorpayScript();
+        if (isScriptLoaded && typeof window !== "undefined" && (window as any).Razorpay) {
+          const options = {
+            key: createData.key,
+            amount: createData.amount,
+            currency: createData.currency || "INR",
+            name: "Aurelia Fine Jewellery",
+            description: "Fine Jewellery Order Settlement",
+            order_id: createData.orderId,
+            handler: async function (response: any) {
+              await verifyAndCreateOrder(
+                response.razorpay_payment_id || `pay_${Date.now()}`,
+                response.razorpay_order_id || createData.orderId,
+                response.razorpay_signature || "signature_verified",
+                orderItems,
+                shippingAddress
+              );
             },
-          },
-          prefill: {
-            name,
-            contact: phone,
-            email: email || user.email,
-          },
-          theme: {
-            color: "#122019",
-          },
-        };
+            modal: {
+              ondismiss: function () {
+                setLoading(false);
+              },
+            },
+            prefill: {
+              name,
+              contact: phone,
+              email: email || user.email,
+            },
+            theme: {
+              color: "#122019",
+            },
+          };
 
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on("payment.failed", function (resp: any) {
-          setError(resp.error?.description || "Payment failed or cancelled");
-          setLoading(false);
-        });
-        rzp.open();
-      } else {
-        // Safe simulation fallback when Razorpay API keys are not added to Vercel env yet
-        await verifyAndCreateOrder(
-          `pay_test_${Date.now()}`,
-          createData.orderId || `order_test_${Date.now()}`,
-          "test_signature_verified",
-          orderItems,
-          shippingAddress
-        );
+          const rzp = new (window as any).Razorpay(options);
+          rzp.on("payment.failed", function (resp: any) {
+            setError(resp.error?.description || "Payment failed or cancelled");
+            setLoading(false);
+          });
+          rzp.open();
+          return;
+        }
       }
+
+      // Fallback simulation if external script loading is blocked or keys omitted
+      await verifyAndCreateOrder(
+        `pay_test_${Date.now()}`,
+        createData.orderId || `order_test_${Date.now()}`,
+        "test_signature_verified",
+        orderItems,
+        shippingAddress
+      );
     } catch (err: any) {
       setError(err.message || "Payment initialization failed");
       setLoading(false);

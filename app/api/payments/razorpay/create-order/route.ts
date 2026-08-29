@@ -4,6 +4,8 @@ import { connectDB } from "@/lib/db/connect";
 import { Product } from "@/lib/models/Product";
 import Razorpay from "razorpay";
 
+import mongoose from "mongoose";
+
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if ("errorResponse" in auth) {
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     let subtotal = 0;
     for (const item of items) {
-      if (item.product) {
+      if (item.product && mongoose.Types.ObjectId.isValid(item.product)) {
         const productDoc = await Product.findById(item.product);
         if (productDoc) {
           if (productDoc.stock < item.quantity) {
@@ -39,20 +41,22 @@ export async function POST(req: NextRequest) {
           }
         }
       }
-      subtotal += (item.price || 0) * (item.quantity || 1);
+      const price = typeof item.price === "number" ? item.price : parseFloat(String(item.price || 0)) || 0;
+      const qty = typeof item.quantity === "number" ? item.quantity : parseInt(String(item.quantity || 1), 10) || 1;
+      subtotal += price * qty;
     }
 
     const shippingCost = subtotal > 100000 ? 0 : 1500;
-    const totalAmount = subtotal + shippingCost;
+    const totalAmount = Math.max(subtotal + shippingCost, 1);
     const amountInPaise = Math.round(totalAmount * 100);
 
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || "";
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
+    const keyId = (process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || "").trim();
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
 
     let razorpayOrderId = `order_test_${Date.now()}`;
     let isSimulated = true;
 
-    // Initialize Razorpay SDK if real valid keys are configured
+    // Initialize Razorpay if real valid keys are configured
     const isRealKey =
       keyId &&
       keySecret &&
@@ -62,26 +66,33 @@ export async function POST(req: NextRequest) {
 
     if (isRealKey) {
       try {
-        const instance = new Razorpay({
-          key_id: keyId,
-          key_secret: keySecret,
-        });
-
-        const rzpOrder = await instance.orders.create({
-          amount: amountInPaise,
-          currency: "INR",
-          receipt: `receipt_${Date.now()}`,
-          notes: {
-            userId: String(auth.user._id),
+        const authHeader = "Basic " + Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+        const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: authHeader,
           },
+          body: JSON.stringify({
+            amount: amountInPaise,
+            currency: "INR",
+            receipt: `receipt_${Date.now()}`,
+            notes: {
+              userId: String(auth.user._id),
+            },
+          }),
         });
 
-        if (rzpOrder && rzpOrder.id) {
-          razorpayOrderId = rzpOrder.id;
+        const rzpData = await rzpRes.json();
+        if (rzpRes.ok && rzpData && rzpData.id) {
+          razorpayOrderId = rzpData.id;
           isSimulated = false;
+        } else {
+          console.error("Razorpay Order API response error:", rzpData);
+          isSimulated = true;
         }
       } catch (err: any) {
-        console.warn("Razorpay API call warning (falling back to test order ID for simulation):", err?.message || err);
+        console.error("Razorpay API call exception:", err?.message || err);
         isSimulated = true;
       }
     }
