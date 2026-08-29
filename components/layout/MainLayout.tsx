@@ -105,7 +105,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {!isStandalone && (
+      {!pathname?.startsWith("/admin") && (
         <nav className="mobile-nav">
           <Link href="/shop" prefetch={true} className={pathname === "/shop" ? "active" : ""}>
             <Store />
@@ -123,7 +123,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <ShoppingBag />
             Bag {count > 0 ? `(${count})` : ""}
           </button>
-          <Link href="/account" prefetch={true} className={pathname === "/account" ? "active" : ""}>
+          <Link href="/account" prefetch={true} className={pathname?.startsWith("/account") ? "active" : ""}>
             <UserRound />
             Account
           </Link>
