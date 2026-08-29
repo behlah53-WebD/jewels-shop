@@ -37,7 +37,7 @@ export function Faq() {
       <div>
         {a.map(([x, y], i) => (
           <article key={x}>
-            <button onClick={() => setO(o === i ? -1 : i)}>
+            <button onClick={() => setO(o === i ? -1 : i)} suppressHydrationWarning={true}>
               {x}
               <ChevronDown className={o === i ? "up" : ""} />
             </button>

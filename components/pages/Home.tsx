@@ -226,6 +226,7 @@ export function Home() {
               onClick={() => setQuiz(i)}
               className={quiz === i ? "selected" : ""}
               key={x}
+              suppressHydrationWarning={true}
             >
               {x}
               <ArrowRight size={16} />

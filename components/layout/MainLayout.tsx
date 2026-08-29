@@ -101,7 +101,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             this preview feel considered.
           </p>
           <Btn onClick={() => setCookie(false)}>Accept</Btn>
-          <button onClick={() => setCookie(false)}>Manage</button>
+          <button onClick={() => setCookie(false)} suppressHydrationWarning={true}>Manage</button>
         </div>
       )}
 
@@ -115,11 +115,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <BookOpen />
             Journal
           </Link>
-          <button onClick={() => setSearch(true)}>
+          <button onClick={() => setSearch(true)} suppressHydrationWarning={true}>
             <Search />
             Search
           </button>
-          <button onClick={() => setBag(true)}>
+          <button onClick={() => setBag(true)} suppressHydrationWarning={true}>
             <ShoppingBag />
             Bag {count > 0 ? `(${count})` : ""}
           </button>

@@ -25,7 +25,13 @@ export function Btn({
     );
   }
   return (
-    <button className={`btn ${className}`} onClick={onClick} type={type} disabled={disabled}>
+    <button
+      className={`btn ${className}`}
+      onClick={onClick}
+      type={type}
+      disabled={disabled}
+      suppressHydrationWarning={true}
+    >
       {children}
     </button>
   );

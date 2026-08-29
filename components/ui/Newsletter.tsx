@@ -24,8 +24,8 @@ export function Newsletter() {
             setJoin(true);
           }}
         >
-          <input type="email" placeholder="Your email address" required />
-          <button type="submit" aria-label="Subscribe">
+          <input type="email" placeholder="Your email address" required suppressHydrationWarning={true} />
+          <button type="submit" aria-label="Subscribe" suppressHydrationWarning={true}>
             <ArrowRight />
           </button>
         </form>
