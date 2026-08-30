@@ -4,6 +4,8 @@ import { Heart, ShoppingBag } from "lucide-react";
 import { ProductType, imgs } from "@/lib/data";
 import { useStore } from "@/components/context/StoreContext";
 
+import { SafeImage } from "@/components/ui/SafeImage";
+
 function CardComponent({ p }: { p: ProductType | any }) {
   const { add, save, toggle } = useStore();
   const id = p._id || p.id || p.slug;
@@ -16,13 +18,13 @@ function CardComponent({ p }: { p: ProductType | any }) {
 
   return (
     <article className="product-card">
-      <div className="product-image">
+      <div className="product-image" style={{ position: "relative" }}>
         <Link
           href={productLink}
           prefetch={true}
-          style={{ display: "block", width: "100%", height: "100%" }}
+          style={{ display: "block", width: "100%", height: "100%", position: "relative" }}
         >
-          <img src={imgUrl} alt={p.name} loading="lazy" decoding="async" />
+          <SafeImage src={imgUrl} alt={p.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" />
         </Link>
         {productBadge && <em>{productBadge}</em>}
         <button className="save" onClick={() => toggle(id)} aria-label={isSaved ? "Remove from wishlist" : "Add to wishlist"}>

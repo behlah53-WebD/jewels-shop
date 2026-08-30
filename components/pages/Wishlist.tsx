@@ -56,9 +56,11 @@ export function Wishlist() {
             <p style={{ fontSize: "0.82rem", color: "var(--muted)" }}>Fetching your saved pieces...</p>
           </div>
         ) : savedProducts.length > 0 ? (
-          <div className="product-grid">
+          <div className="product-grid sr-stagger" data-visible>
             {savedProducts.map((p) => (
-              <Card key={p._id || p.id || p.slug} p={p} />
+              <div key={p._id || p.id || p.slug} className="sr-scale-up">
+                <Card p={p} />
+              </div>
             ))}
           </div>
         ) : (

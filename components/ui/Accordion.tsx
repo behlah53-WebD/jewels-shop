@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 
 export function Accordion({ product }: { product?: any }) {
@@ -34,7 +34,16 @@ export function Accordion({ product }: { product?: any }) {
             {x}
             <ChevronDown className={o === i ? "up" : ""} />
           </button>
-          {o === i && <p>{y}</p>}
+          {/* Smooth height transition via CSS max-height trick */}
+          <div
+            style={{
+              maxHeight: o === i ? "200px" : "0",
+              overflow: "hidden",
+              transition: "max-height 0.38s cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
+          >
+            {<p>{y}</p>}
+          </div>
         </div>
       ))}
     </div>

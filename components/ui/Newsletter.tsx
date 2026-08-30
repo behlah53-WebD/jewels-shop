@@ -1,8 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { ArrowRight } from "lucide-react";
 
-export function Newsletter() {
+function NewsletterComponent() {
   const [join, setJoin] = useState(false);
 
   return (
@@ -38,3 +38,6 @@ export function Newsletter() {
     </section>
   );
 }
+
+export const Newsletter = memo(NewsletterComponent);
+

@@ -1,8 +1,9 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import { X, ShoppingBag, Trash2 } from "lucide-react";
 import { useStore } from "@/components/context/StoreContext";
+import { SafeImage } from "@/components/ui/SafeImage";
 
 export function BagDrawer() {
   const { count, cartItems, setBag, removeFromCart, proceedToCheckout } = useStore();
@@ -19,7 +20,10 @@ export function BagDrawer() {
     }
   };
 
-  const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const subtotal = useMemo(
+    () => cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0),
+    [cartItems]
+  );
 
   return (
     <div className="overlay cart-overlay">
@@ -38,7 +42,9 @@ export function BagDrawer() {
                   className="drawer-item"
                   style={{ display: "flex", gap: "1rem", color: "inherit", alignItems: "center", position: "relative" }}
                 >
-                  <img src={item.image || "/placeholder.jpg"} alt={item.name} />
+                  <div style={{ position: "relative", width: "60px", height: "60px", flexShrink: 0, borderRadius: "4px", overflow: "hidden" }}>
+                    <SafeImage src={item.image} alt={item.name} fill sizes="80px" />
+                  </div>
                   <span style={{ flex: 1 }}>
                     {item.name}
                     <small>

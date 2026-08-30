@@ -35,7 +35,15 @@ export function Cart() {
           <div className="cart-layout">
             <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
               {cartItems.map((item, idx) => (
-                <article key={`${item.product}-${idx}`} className="cart-product">
+                <article
+                  key={`${item.product}-${idx}`}
+                  className="cart-product sr-fade-up"
+                  style={{
+                    opacity: 1,
+                    transform: "none",
+                    animation: `anim-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) ${idx * 0.08}s both`,
+                  }}
+                >
                   <Link
                     href={`/product/${item.product}`}
                     style={{ display: "block", flex: "none" }}

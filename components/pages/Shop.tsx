@@ -7,7 +7,8 @@ import { imgs } from "@/lib/data";
 import { Title } from "@/components/ui/Title";
 import { Card } from "@/components/ui/Card";
 import { Faq } from "@/components/ui/Faq";
-
+import { SafeImage } from "@/components/ui/SafeImage";
+import { useScrollReveal } from "@/lib/hooks/useScrollReveal";
 import { useMemo } from "react";
 import { useGetProductsQuery, useGetCategoriesQuery } from "@/lib/redux/api/apiSlice";
 
@@ -58,10 +59,14 @@ export function Shop() {
 
   const activeFilterDisplay = selectedCatObj ? selectedCatObj.name : activeFilter;
 
+  // Scroll-reveal refs
+  const refGrid    = useScrollReveal();
+  const refGuide   = useScrollReveal();
+
   return (
     <main className="page cream hero-lead">
-      <section className="collection-hero">
-        <img src={imgs.gold} alt="Aurelia collection" />
+      <section className="collection-hero" style={{ position: "relative" }}>
+        <SafeImage src={imgs.gold} alt="Aurelia collection" fill priority sizes="100vw" />
         <div>
           <p>Collection / {activeFilterDisplay}</p>
           
@@ -136,26 +141,35 @@ export function Shop() {
             <p className="text-xs text-stone-500 font-medium">Fetching fine jewellery collection...</p>
           </div>
         ) : (
-          <div className={list ? "product-list" : "product-grid light-grid"}>
+          <div
+            className={`${list ? "product-list" : "product-grid light-grid"} sr-stagger`}
+            ref={refGrid as React.RefCallback<HTMLDivElement>}
+            data-visible
+          >
             {products.map((p: any) => (
-              <Card key={p._id || p.id} p={p} />
+              <div key={p._id || p.id} className="sr-scale-up">
+                <Card p={p} />
+              </div>
             ))}
           </div>
         )}
 
-        <section className="buying-guide">
-          <div>
+        <section
+          className="buying-guide"
+          ref={refGuide as React.RefCallback<HTMLElement>}
+        >
+          <div className="sr-fade-right">
             <p>Buying guide</p>
             <h2>
               Choose with <i>confidence.</i>
             </h2>
           </div>
-          <div>
+          <div className="sr-fade-up">
             <b>Metal and purity</b>
             <span>Learn about hue, durability, and everyday character.</span>
             <Link href="/guide">Explore metals →</Link>
           </div>
-          <div>
+          <div className="sr-fade-up">
             <b>Size and fit</b>
             <span>
               Use our visual guide to find the proportions that feel natural.

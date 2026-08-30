@@ -9,9 +9,13 @@ import { Btn } from "@/components/ui/Btn";
 import { imgs } from "@/lib/data";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
-import { SearchOverlay } from "./SearchOverlay";
-import { BagDrawer } from "./BagDrawer";
-import { AuthModal } from "@/components/ui/AuthModal";
+import dynamic from "next/dynamic";
+import { SafeImage } from "@/components/ui/SafeImage";
+
+const SearchOverlay = dynamic(() => import("./SearchOverlay").then((m) => m.SearchOverlay), { ssr: false });
+const BagDrawer = dynamic(() => import("./BagDrawer").then((m) => m.BagDrawer), { ssr: false });
+const AuthModal = dynamic(() => import("@/components/ui/AuthModal").then((m) => m.AuthModal), { ssr: false });
+
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const { menu, setMenu, search, setSearch, bag, setBag, count } = useStore();
@@ -68,8 +72,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               ))}
             </div>
-            <div className="mega-feature">
-              <img src={imgs.emerald} alt="Emerald jewellery" />
+            <div className="mega-feature" style={{ position: "relative" }}>
+              <SafeImage src={imgs.emerald} alt="Emerald jewellery" fill sizes="300px" />
               <span>Featured / The verdant edit</span>
               <Link href="/shop" onClick={() => setMenu(false)}>
                 Explore now →

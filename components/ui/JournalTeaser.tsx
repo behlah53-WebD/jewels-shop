@@ -1,7 +1,7 @@
-import React from "react";
+import React, { memo } from "react";
 import Link from "next/link";
 
-export function JournalTeaser() {
+function JournalTeaserComponent() {
   return (
     <section className="section cream journal-teaser">
       <div>
@@ -24,3 +24,6 @@ export function JournalTeaser() {
     </section>
   );
 }
+
+export const JournalTeaser = memo(JournalTeaserComponent);
+

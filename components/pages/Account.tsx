@@ -40,8 +40,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useStore } from "@/components/context/StoreContext";
-import { OtpModal } from "@/components/auth/OtpModal";
-import { PasswordModal } from "@/components/auth/PasswordModal";
+import dynamic from "next/dynamic";
+
+const OtpModal = dynamic(() => import("@/components/auth/OtpModal").then((m) => m.OtpModal), { ssr: false });
+const PasswordModal = dynamic(() => import("@/components/auth/PasswordModal").then((m) => m.PasswordModal), { ssr: false });
 import { useDispatch } from "react-redux";
 import { apiSlice, useGetOrdersQuery } from "@/lib/redux/api/apiSlice";
 import { invalidateCache } from "@/lib/apiClient";
@@ -76,6 +78,7 @@ export function Account() {
   const [verifiedOtp, setVerifiedOtp] = useState("");
 
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [expandedOrderCards, setExpandedOrderCards] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Return modal state
@@ -713,8 +716,16 @@ export function Account() {
                 const isReturned = o.orderStatus === "returned";
                 const isReturnRequested = o.orderStatus === "return_requested";
                 const isExpanded = expandedOrders.has(o._id);
+                const isCardExpanded = expandedOrderCards.has(o._id);
                 const visibleItems = isExpanded ? o.items : o.items?.slice(0, 2);
                 const hasMoreItems = (o.items?.length || 0) > 2;
+
+                const toggleCard = () => {
+                  const next = new Set(expandedOrderCards);
+                  if (isCardExpanded) next.delete(o._id);
+                  else next.add(o._id);
+                  setExpandedOrderCards(next);
+                };
 
                 const statusClass = o.orderStatus === "delivered"
                   ? "status-delivered"
@@ -733,17 +744,17 @@ export function Account() {
                 };
 
                 return (
-                  <article key={o._id} className="dash-order-card">
+                  <article key={o._id} className={`dash-order-card ${isCardExpanded ? "is-expanded" : ""}`}>
 
                     {/* ── ORDER HEAD ── */}
-                    <div className="dash-order-head">
+                    <div className="dash-order-head" onClick={toggleCard} style={{ cursor: "pointer" }}>
                       <div className="dash-order-meta">
                         <div className="dash-order-number-row">
                           <span className="dash-order-hash"><Hash size={10} /></span>
                           <span className="dash-order-id">{o._id.substring(0, 12).toUpperCase()}</span>
                           <button
                             className="dash-order-id-copy"
-                            onClick={handleCopyId}
+                            onClick={(e) => { e.stopPropagation(); handleCopyId(); }}
                             title="Copy order ID"
                           >
                             {copiedId === o._id
@@ -766,183 +777,196 @@ export function Account() {
                         </div>
                       </div>
 
-                      <div className="dash-order-badges">
-                        {o.razorpayPaymentId && (
-                          <span className="dash-badge dash-badge-razorpay">
-                            <ShieldCheck size={9} />
-                            Razorpay · {o.razorpayPaymentId.substring(0, 10)}
+                      <div className="dash-order-head-right">
+                        <div className="dash-order-badges">
+                          {o.razorpayPaymentId && (
+                            <span className="dash-badge dash-badge-razorpay">
+                              <ShieldCheck size={9} />
+                              Razorpay · {o.razorpayPaymentId.substring(0, 10)}
+                            </span>
+                          )}
+                          <span className={`dash-badge dash-badge-status ${statusClass}`}>
+                            {o.orderStatus === "delivered" && <CheckCircle size={9} />}
+                            {o.orderStatus === "shipped" && <Truck size={9} />}
+                            {o.orderStatus === "processing" && <RefreshCw size={9} />}
+                            {(isReturned || isReturnRequested) && <RotateCcw size={9} />}
+                            {o.orderStatus.replace(/_/g, " ")}
                           </span>
-                        )}
-                        <span className={`dash-badge dash-badge-status ${statusClass}`}>
-                          {o.orderStatus === "delivered" && <CheckCircle size={9} />}
-                          {o.orderStatus === "shipped" && <Truck size={9} />}
-                          {o.orderStatus === "processing" && <RefreshCw size={9} />}
-                          {(isReturned || isReturnRequested) && <RotateCcw size={9} />}
-                          {o.orderStatus.replace(/_/g, " ")}
-                        </span>
-                        <span className={`dash-badge dash-badge-pay ${o.paymentStatus === "paid" ? "pay-paid" : ""}`}>
-                          <CreditCard size={9} />
-                          {o.paymentStatus}
-                        </span>
+                          <span className={`dash-badge dash-badge-pay ${o.paymentStatus === "paid" ? "pay-paid" : ""}`}>
+                            <CreditCard size={9} />
+                            {o.paymentStatus}
+                          </span>
+                        </div>
+                        <button
+                          className="dash-order-expand-arrow"
+                          onClick={(e) => { e.stopPropagation(); toggleCard(); }}
+                          title={isCardExpanded ? "Collapse order" : "Expand order"}
+                          aria-expanded={isCardExpanded}
+                        >
+                          {isCardExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
                       </div>
                     </div>
 
-                    {/* ── TIMELINE STEPPER ── */}
-                    {isReturned || isReturnRequested ? (
-                      <div className="order-return-banner">
-                        <div className="order-return-info">
-                          <div className="order-return-title">
-                            <RotateCcw size={13} />
-                            {isReturned ? "Return Processed & Refunded" : "Return Request Pending Review"}
+                    {/* ── COLLAPSIBLE BODY ── */}
+                    <div className="dash-order-body">
+                      {/* ── TIMELINE STEPPER ── */}
+                      {isReturned || isReturnRequested ? (
+                        <div className="order-return-banner">
+                          <div className="order-return-info">
+                            <div className="order-return-title">
+                              <RotateCcw size={13} />
+                              {isReturned ? "Return Processed & Refunded" : "Return Request Pending Review"}
+                            </div>
+                            <div className="order-return-reason">
+                              Reason: {o.returnDetails?.reason || "Customer return request"}
+                            </div>
                           </div>
-                          <div className="order-return-reason">
-                            Reason: {o.returnDetails?.reason || "Customer return request"}
+                          <span className="order-return-chip">
+                            {o.orderStatus.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="order-timeline-wrap">
+                          <div className="order-timeline-steps">
+                            {steps.map((step, idx) => {
+                              const isDone = idx <= currentStepIndex;
+                              const isCurrent = idx === currentStepIndex;
+                              return (
+                                <div key={step.key} className="order-step">
+                                  {/* Connector line to next step */}
+                                  {idx < steps.length - 1 && (
+                                    <div className={`order-step-connector ${idx < currentStepIndex ? "done" : ""}`} />
+                                  )}
+                                  <div className={`order-step-dot ${isCurrent ? "current" : isDone ? "done" : ""}`}>
+                                    {isDone ? (isCurrent ? idx + 1 : "✓") : idx + 1}
+                                  </div>
+                                  <span className={`order-step-label ${isCurrent ? "current" : isDone ? "done" : ""}`}>
+                                    {step.label}
+                                  </span>
+                                  {isCurrent && (
+                                    <span className="order-step-sub">In progress</span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                        <span className="order-return-chip">
-                          {o.orderStatus.replace(/_/g, " ")}
-                        </span>
+                      )}
+
+                      {/* ── ORDER SUMMARY BAR ── */}
+                      <div className="order-summary-bar">
+                        <div className="order-summary-cell">
+                          <span className="order-summary-label">Items</span>
+                          <span className="order-summary-value">{o.items?.length || 0}</span>
+                        </div>
+                        <div className="order-summary-cell">
+                          <span className="order-summary-label">Payment</span>
+                          <span className="order-summary-value" style={{ textTransform: "capitalize" }}>{o.paymentMethod || "Online"}</span>
+                        </div>
+                        <div className="order-summary-cell">
+                          <span className="order-summary-label">Total</span>
+                          <span className="order-summary-value">&#x20B9;{o.total?.toLocaleString("en-IN")}</span>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="order-timeline-wrap">
-                        <div className="order-timeline-steps">
-                          {steps.map((step, idx) => {
-                            const isDone = idx <= currentStepIndex;
-                            const isCurrent = idx === currentStepIndex;
-                            return (
-                              <div key={step.key} className="order-step">
-                                {/* Connector line to next step */}
-                                {idx < steps.length - 1 && (
-                                  <div className={`order-step-connector ${idx < currentStepIndex ? "done" : ""}`} />
+
+                      {/* ── ORDER ITEMS ── */}
+                      <div className="dash-order-items">
+                        {visibleItems?.map((item: any, idx: number) => (
+                          <div key={idx} className="dash-order-item">
+                            <img
+                              src={item.image || "/placeholder.jpg"}
+                              alt={item.name}
+                              className="dash-order-item-img"
+                            />
+                            <div className="dash-order-item-info">
+                              <div className="dash-order-item-name">{item.name}</div>
+                              <div className="dash-order-item-meta">
+                                <span>Qty: {item.quantity}</span>
+                                {item.size && (
+                                  <>
+                                    <span className="dash-order-item-meta-sep" />
+                                    <span>Size: {item.size}</span>
+                                  </>
                                 )}
-                                <div className={`order-step-dot ${isCurrent ? "current" : isDone ? "done" : ""}`}>
-                                  {isDone ? (isCurrent ? idx + 1 : "✓") : idx + 1}
-                                </div>
-                                <span className={`order-step-label ${isCurrent ? "current" : isDone ? "done" : ""}`}>
-                                  {step.label}
-                                </span>
-                                {isCurrent && (
-                                  <span className="order-step-sub">In progress</span>
+                                {item.price && (
+                                  <>
+                                    <span className="dash-order-item-meta-sep" />
+                                    <span className="dash-order-item-badge">
+                                      &#x20B9;{item.price.toLocaleString("en-IN")} ea.
+                                    </span>
+                                  </>
                                 )}
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ── ORDER SUMMARY BAR ── */}
-                    <div className="order-summary-bar">
-                      <div className="order-summary-cell">
-                        <span className="order-summary-label">Items</span>
-                        <span className="order-summary-value">{o.items?.length || 0}</span>
-                      </div>
-                      <div className="order-summary-cell">
-                        <span className="order-summary-label">Payment</span>
-                        <span className="order-summary-value" style={{ textTransform: "capitalize" }}>{o.paymentMethod || "Online"}</span>
-                      </div>
-                      <div className="order-summary-cell">
-                        <span className="order-summary-label">Total</span>
-                        <span className="order-summary-value">&#x20B9;{o.total?.toLocaleString("en-IN")}</span>
-                      </div>
-                    </div>
-
-                    {/* ── ORDER ITEMS ── */}
-                    <div className="dash-order-items">
-                      {visibleItems?.map((item: any, idx: number) => (
-                        <div key={idx} className="dash-order-item">
-                          <img
-                            src={item.image || "/placeholder.jpg"}
-                            alt={item.name}
-                            className="dash-order-item-img"
-                          />
-                          <div className="dash-order-item-info">
-                            <div className="dash-order-item-name">{item.name}</div>
-                            <div className="dash-order-item-meta">
-                              <span>Qty: {item.quantity}</span>
-                              {item.size && (
-                                <>
-                                  <span className="dash-order-item-meta-sep" />
-                                  <span>Size: {item.size}</span>
-                                </>
-                              )}
-                              {item.price && (
-                                <>
-                                  <span className="dash-order-item-meta-sep" />
-                                  <span className="dash-order-item-badge">
-                                    &#x20B9;{item.price.toLocaleString("en-IN")} ea.
-                                  </span>
-                                </>
-                              )}
+                            </div>
+                            <div className="dash-order-item-price-col">
+                              <div className="dash-order-item-price">
+                                &#x20B9;{(item.price * item.quantity).toLocaleString("en-IN")}
+                              </div>
+                              <div className="dash-order-item-qty">
+                                {item.quantity > 1 ? `${item.quantity} × ₹${item.price?.toLocaleString("en-IN")}` : ""}
+                              </div>
                             </div>
                           </div>
-                          <div className="dash-order-item-price-col">
-                            <div className="dash-order-item-price">
-                              &#x20B9;{(item.price * item.quantity).toLocaleString("en-IN")}
-                            </div>
-                            <div className="dash-order-item-qty">
-                              {item.quantity > 1 ? `${item.quantity} × ₹${item.price?.toLocaleString("en-IN")}` : ""}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Expand/collapse more items */}
-                    {hasMoreItems && (
-                      <button
-                        className="order-expand-btn"
-                        onClick={() => {
-                          const next = new Set(expandedOrders);
-                          if (isExpanded) next.delete(o._id);
-                          else next.add(o._id);
-                          setExpandedOrders(next);
-                        }}
-                      >
-                        {isExpanded
-                          ? <><ChevronUp size={12} /> Show less</>
-                          : <><ChevronDown size={12} /> Show {o.items.length - 2} more item{o.items.length - 2 !== 1 ? "s" : ""}</>
-                        }
-                      </button>
-                    )}
-
-                    {/* ── ORDER FOOTER ── */}
-                    <div className="dash-order-foot">
-                      <div className="dash-order-foot-left">
-                        {o.shippingAddress?.street && (
-                          <div className="dash-order-address">
-                            <MapPin size={12} />
-                            <span>
-                              {o.shippingAddress.street}, {o.shippingAddress.city}
-                              {o.shippingAddress.state ? `, ${o.shippingAddress.state}` : ""}
-                              {o.shippingAddress.postalCode ? ` – ${o.shippingAddress.postalCode}` : ""}
-                            </span>
-                          </div>
-                        )}
+                        ))}
                       </div>
-                      <div className="dash-order-foot-right">
-                        <a
-                          href={`/api/orders/${o._id}/invoice?download=true`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="order-return-btn"
-                          style={{ background: "rgba(213,173,103,0.12)", borderColor: "rgba(213,173,103,0.3)", color: "#8b6d3a" }}
-                          title="View / Download Official Tax Invoice"
+
+                      {/* Expand/collapse more items */}
+                      {hasMoreItems && (
+                        <button
+                          className="order-expand-btn"
+                          onClick={() => {
+                            const next = new Set(expandedOrders);
+                            if (isExpanded) next.delete(o._id);
+                            else next.add(o._id);
+                            setExpandedOrders(next);
+                          }}
                         >
-                          <Download size={12} /> Download Invoice
-                        </a>
-                        {o.orderStatus === "delivered" && (
-                          <button
-                            onClick={() => setReturnModalOrder(o)}
+                          {isExpanded
+                            ? <><ChevronUp size={12} /> Show less</>
+                            : <><ChevronDown size={12} /> Show {o.items.length - 2} more item{o.items.length - 2 !== 1 ? "s" : ""}</>
+                          }
+                        </button>
+                      )}
+
+                      {/* ── ORDER FOOTER ── */}
+                      <div className="dash-order-foot">
+                        <div className="dash-order-foot-left">
+                          {o.shippingAddress?.street && (
+                            <div className="dash-order-address">
+                              <MapPin size={12} />
+                              <span>
+                                {o.shippingAddress.street}, {o.shippingAddress.city}
+                                {o.shippingAddress.state ? `, ${o.shippingAddress.state}` : ""}
+                                {o.shippingAddress.postalCode ? ` – ${o.shippingAddress.postalCode}` : ""}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="dash-order-foot-right">
+                          <a
+                            href={`/api/orders/${o._id}/invoice?download=true`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="order-return-btn"
+                            style={{ background: "rgba(213,173,103,0.12)", borderColor: "rgba(213,173,103,0.3)", color: "#8b6d3a" }}
+                            title="View / Download Official Tax Invoice"
                           >
-                            <RotateCcw size={12} /> Return Order
-                          </button>
-                        )}
-                        <div className="dash-order-total-block">
-                          <span className="dash-order-total-label">Order Total</span>
-                          <div className="dash-order-total-amount">
-                            &#x20B9;{o.total?.toLocaleString("en-IN")}
+                            <Download size={12} /> Download Invoice
+                          </a>
+                          {o.orderStatus === "delivered" && (
+                            <button
+                              onClick={() => setReturnModalOrder(o)}
+                              className="order-return-btn"
+                            >
+                              <RotateCcw size={12} /> Return Order
+                            </button>
+                          )}
+                          <div className="dash-order-total-block">
+                            <span className="dash-order-total-label">Order Total</span>
+                            <div className="dash-order-total-amount">
+                              &#x20B9;{o.total?.toLocaleString("en-IN")}
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -8,6 +8,7 @@ import { Title } from "@/components/ui/Title";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
 import { Accordion } from "@/components/ui/Accordion";
+import { SafeImage } from "@/components/ui/SafeImage";
 
 import { useRouter } from "next/navigation";
 
@@ -37,7 +38,9 @@ export function Product({ slug }: { slug?: string }) {
   const pName = p.name || "Solenne Emerald-Cut Ring";
   const pPrice = typeof p.price === "number" ? `₹${p.price.toLocaleString()}` : p.price;
   const pImage = p.featuredImage || p.image || imgs.ring;
-  const pGallery = p.images && p.images.length > 0 ? p.images : [pImage, imgs.ring, imgs.emerald];
+  const rawGallery = p.images && p.images.length > 0 ? p.images : [pImage, imgs.ring, imgs.emerald];
+  const pGallery = rawGallery.filter((img: any) => typeof img === "string" && img.trim().length > 0);
+  if (pGallery.length === 0) pGallery.push(imgs.ring);
   const pStock = p.stock !== undefined ? p.stock : 10;
   const isSaved = save.includes(p._id || p.id);
 
@@ -85,10 +88,10 @@ export function Product({ slug }: { slug?: string }) {
             <p className="text-xs text-stone-500 font-medium">Loading piece specifications...</p>
           </div>
         ) : (
-          <div className="product-layout">
+        <div className="product-layout" style={{ animation: "anim-fade-up 0.6s cubic-bezier(0.22,1,0.36,1) both" }}>
             <div className="gallery">
-              <div className="main-image">
-                <img src={pGallery[im] || pImage} alt={pName} />
+              <div className="main-image" style={{ position: "relative" }}>
+                <SafeImage key={im} src={pGallery[im] || pImage} alt={pName} fill priority sizes="(max-width: 768px) 100vw, 50vw" style={{ animation: "anim-fade-in 0.32s ease both" }} />
                 <span>
                   <ZoomIn size={16} /> Click to zoom
                 </span>
@@ -99,8 +102,9 @@ export function Product({ slug }: { slug?: string }) {
                     onClick={() => setIm(i)}
                     className={i === im ? "active" : ""}
                     key={i}
+                    style={{ position: "relative" }}
                   >
-                    <img src={x} alt={`${pName} view ${i + 1}`} />
+                    <SafeImage src={x} alt={`${pName} view ${i + 1}`} fill sizes="100px" />
                   </button>
                 ))}
               </div>

@@ -47,7 +47,7 @@ export function Contact() {
               <select>
                 <option>Bespoke jewellery</option>
                 <option>Order support</option>
-                <option>Care & repair</option>
+                <option>Care &amp; repair</option>
               </select>
             </label>
           </div>

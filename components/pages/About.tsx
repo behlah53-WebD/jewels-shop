@@ -1,10 +1,16 @@
+"use client";
 import React from "react";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { imgs } from "@/lib/data";
 import { Title } from "@/components/ui/Title";
+import { useScrollReveal } from "@/lib/hooks/useScrollReveal";
 
 export function About() {
+  const refPanels  = useScrollReveal();
+  const refTimeline = useScrollReveal();
+  const refShowroom = useScrollReveal();
+
   return (
     <main className="page cream hero-lead">
       <section className="about-hero">
@@ -30,10 +36,13 @@ export function About() {
           }
           copy="The Aurelia story begins with reverence for material and a belief that jewellery should sit naturally within a life."
         />
-        <div className="story-panels">
-          {["Founder’s note", "Atelier practice", "Future-minded making"].map(
+        <div
+          className="story-panels sr-stagger-slow"
+          ref={refPanels as React.RefCallback<HTMLDivElement>}
+        >
+          {["Founder's note", "Atelier practice", "Future-minded making"].map(
             (x, i) => (
-              <article key={x}>
+              <article key={x} className="sr-scale-up">
                 <span>0{i + 1}</span>
                 <h3>{x}</h3>
                 <p>
@@ -44,14 +53,17 @@ export function About() {
             )
           )}
         </div>
-        <div className="timeline">
+        <div
+          className="timeline sr-stagger-slow"
+          ref={refTimeline as React.RefCallback<HTMLDivElement>}
+        >
           {[
             "The first sketch",
             "A language of colour",
             "The modern heirloom",
             "The next chapter",
           ].map((x, i) => (
-            <div key={x}>
+            <div key={x} className="sr-fade-right">
               <span>202{i + 2}</span>
               <h3>{x}</h3>
               <p>
@@ -61,7 +73,10 @@ export function About() {
             </div>
           ))}
         </div>
-        <section className="showroom">
+        <section
+          className="showroom sr-fade-up"
+          ref={refShowroom as React.RefCallback<HTMLElement>}
+        >
           <MapPin />
           <div>
             <p>Visit the world of Aurelia</p>

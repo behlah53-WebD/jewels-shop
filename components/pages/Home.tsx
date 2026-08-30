@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -10,7 +10,6 @@ import {
   Sparkles,
   Diamond,
   Star,
-  Instagram,
 } from "lucide-react";
 import { imgs } from "@/lib/data";
 import { defaultSiteContent } from "@/lib/defaults";
@@ -19,6 +18,8 @@ import { Card } from "@/components/ui/Card";
 import { JournalTeaser } from "@/components/ui/JournalTeaser";
 import { Faq } from "@/components/ui/Faq";
 import { Newsletter } from "@/components/ui/Newsletter";
+import { useScrollReveal } from "@/lib/hooks/useScrollReveal";
+import { SafeImage } from "@/components/ui/SafeImage";
 
 import {
   useGetSiteContentQuery,
@@ -44,11 +45,24 @@ export function Home() {
   const bridal = siteContent.bridalBanner || defaultSiteContent.bridalBanner;
   const testimonials = siteContent.testimonials || defaultSiteContent.testimonials;
 
+  // Scroll-reveal refs — each section gets its own observer
+  const refTrust       = useScrollReveal();
+  const refCategories  = useScrollReveal();
+  const refProducts    = useScrollReveal();
+  const refDiscovery   = useScrollReveal();
+  const refLimited     = useScrollReveal();
+  const refStory       = useScrollReveal();
+  const refQuiz        = useScrollReveal();
+  const refBridal      = useScrollReveal();
+  const refCraft       = useScrollReveal();
+  const refCerts       = useScrollReveal();
+  const refTestimonials = useScrollReveal();
+
   return (
     <main>
       {/* Dynamic Hero Section */}
-      <section className="hero">
-        <img src={hero.image || imgs.hero} alt="Gold and gemstone jewellery" />
+      <section className="hero" style={{ position: "relative" }}>
+        <SafeImage src={hero.image || imgs.hero} alt="Gold and gemstone jewellery" fill priority sizes="100vw" />
         <div className="hero-shade" />
         <div className="hero-copy">
           <p>{hero.tagline}</p>
@@ -67,14 +81,17 @@ export function Home() {
       </section>
 
       {/* Trust Row Section */}
-      <section className="trust-row">
+      <section
+        className="trust-row sr-stagger"
+        ref={refTrust as React.RefCallback<HTMLElement>}
+      >
         {[
           [BadgeCheck, trustRow[0]?.title || "Certified jewellery", trustRow[0]?.subtitle || "Authenticity documentation."],
           [LockKeyhole, trustRow[1]?.title || "Secure checkout", trustRow[1]?.subtitle || "Encrypted transactions."],
           [ShieldCheck, trustRow[2]?.title || "Insured delivery", trustRow[2]?.subtitle || "Carefully packaged dispatch."],
           [PackageCheck, trustRow[3]?.title || "Easy returns", trustRow[3]?.subtitle || "30-day return policy."],
         ].map(([Icon, title, subtitle]: any) => (
-          <div key={title}>
+          <div key={title} className="sr-fade-up">
             <Icon />
             <p>
               <b>{title}</b>
@@ -85,7 +102,10 @@ export function Home() {
       </section>
 
       {/* Dynamic Collection & Category Grid */}
-      <section className="section cream">
+      <section
+        className="section cream"
+        ref={refCategories as React.RefCallback<HTMLElement>}
+      >
         <Title
           eyebrow="The collection"
           title={
@@ -94,7 +114,7 @@ export function Home() {
             </>
           }
         />
-        <div className="category-grid">
+        <div className="category-grid sr-stagger">
           {(() => {
             const list = categories.length > 0 ? categories : [
               { name: "Rings", slug: "rings", image: imgs.ring },
@@ -108,10 +128,11 @@ export function Home() {
               return (
                 <Link
                   href={`/shop?category=${encodeURIComponent(c.slug || c.name)}`}
-                  className={`category ${isTall ? "tall" : isWide ? "wide" : ""}`}
+                  className={`category sr-scale-up ${isTall ? "tall" : isWide ? "wide" : ""}`}
                   key={c._id || c.name}
+                  style={{ position: "relative" }}
                 >
-                  <img src={c.image || imgs.ring} alt={`${c.name} collection`} />
+                  <SafeImage src={c.image || imgs.ring} alt={`${c.name} collection`} fill sizes="(max-width: 768px) 100vw, 50vw" />
                   <b>{c.name}</b>
                   <span>Explore →</span>
                 </Link>
@@ -122,7 +143,10 @@ export function Home() {
       </section>
 
       {/* Dynamic Products Grid (New Arrivals / Featured) */}
-      <section className="section deep">
+      <section
+        className="section deep"
+        ref={refProducts as React.RefCallback<HTMLElement>}
+      >
         <Title
           eyebrow="New arrivals"
           title={
@@ -131,7 +155,7 @@ export function Home() {
             </>
           }
         />
-        <div className="product-grid">
+        <div className="product-grid sr-stagger">
           {products.length > 0 ? (
             products.map((p: any) => <Card key={p._id || p.id} p={p} />)
           ) : (
@@ -141,8 +165,11 @@ export function Home() {
       </section>
 
       {/* Discovery Section */}
-      <section className="discovery">
-        <div>
+      <section
+        className="discovery"
+        ref={refDiscovery as React.RefCallback<HTMLElement>}
+      >
+        <div className="sr-fade-right">
           <p>Discover by material</p>
           <h2>
             Every detail,
@@ -154,7 +181,7 @@ export function Home() {
             balance natural integrity with a distinctly modern point of view.
           </span>
         </div>
-        <div className="discovery-cards">
+        <div className="discovery-cards sr-stagger-fast">
           {[
             "Gold",
             "Rose gold",
@@ -166,7 +193,7 @@ export function Home() {
             "Sapphire",
             "Pearl",
           ].map((x, i) => (
-            <Link href={`/shop?material=${encodeURIComponent(x)}`} key={x}>
+            <Link href={`/shop?material=${encodeURIComponent(x)}`} key={x} className="sr-fade-left">
               <span>0{i + 1}</span>
               {x}
               <ArrowRight size={15} />
@@ -176,9 +203,13 @@ export function Home() {
       </section>
 
       {/* Limited Edition Banner */}
-      <section className="limited">
-        <img src={limited.image || imgs.bridal} alt="Limited collection" />
-        <div>
+      <section
+        className="limited"
+        ref={refLimited as React.RefCallback<HTMLElement>}
+        style={{ position: "relative" }}
+      >
+        <SafeImage src={limited.image || imgs.bridal} alt="Limited collection" fill sizes="100vw" />
+        <div className="sr-fade-right">
           <p>{limited.eyebrow}</p>
           <h2>{limited.title}</h2>
           <span>{limited.description}</span>
@@ -189,20 +220,23 @@ export function Home() {
       </section>
 
       {/* Story Section */}
-      <section className="section cream story">
-        <div>
+      <section
+        className="section cream story"
+        ref={refStory as React.RefCallback<HTMLElement>}
+      >
+        <div className="sr-fade-right">
           <p>{story.eyebrow}</p>
           <h2>{story.title}</h2>
           <span>{story.description}</span>
           <Link href={story.ctaLink || "/about"}>{story.ctaText} →</Link>
         </div>
-        <ol>
+        <ol className="sr-stagger-slow">
           {(story.steps || [
             { title: "Stone selection" },
             { title: "Hand-set precision" },
             { title: "Final illumination" },
           ]).map((step: any, i: number) => (
-            <li key={step.title}>
+            <li key={step.title} className="sr-fade-left">
               <span>0{i + 1}</span>
               {step.title}
             </li>
@@ -211,15 +245,18 @@ export function Home() {
       </section>
 
       {/* Interactive Style Quiz */}
-      <section className="quiz">
-        <div>
+      <section
+        className="quiz"
+        ref={refQuiz as React.RefCallback<HTMLElement>}
+      >
+        <div className="sr-fade-up">
           <p>Style discovery</p>
           <h2>
             Find your signature <i>piece.</i>
           </h2>
           <span>Answer a few considered questions for a starting point.</span>
         </div>
-        <div className="quiz-box">
+        <div className="quiz-box sr-scale-up">
           <b>What does luxury mean to you?</b>
           {["Quiet brilliance", "A bold signature", "Heirloom romance"].map((x, i) => (
             <button
@@ -244,9 +281,13 @@ export function Home() {
       </section>
 
       {/* Bridal Banner */}
-      <section className="bridal">
-        <img src={bridal.image || imgs.bridal} alt="Bridal jewellery" />
-        <div>
+      <section
+        className="bridal"
+        ref={refBridal as React.RefCallback<HTMLElement>}
+        style={{ position: "relative" }}
+      >
+        <SafeImage src={bridal.image || imgs.bridal} alt="Bridal jewellery" fill sizes="100vw" />
+        <div className="sr-fade-left">
           <p>{bridal.eyebrow}</p>
           <h2>{bridal.title}</h2>
           <span>{bridal.description}</span>
@@ -257,8 +298,11 @@ export function Home() {
       </section>
 
       {/* Craft Promise */}
-      <section className="craft">
-        <div>
+      <section
+        className="craft"
+        ref={refCraft as React.RefCallback<HTMLElement>}
+      >
+        <div className="sr-fade-right">
           <Sparkles />
           <p>The Aurelia promise</p>
           <h2>
@@ -271,11 +315,16 @@ export function Home() {
             Begin your commission
           </Link>
         </div>
-        <img src={imgs.hero} alt="Aurelia craftsmanship" />
+        <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px" }}>
+          <SafeImage src={imgs.hero} alt="Aurelia craftsmanship" fill sizes="(max-width: 768px) 100vw, 50vw" className="sr-scale-in" />
+        </div>
       </section>
 
       {/* Authenticity Section */}
-      <section className="section deep">
+      <section
+        className="section deep"
+        ref={refCerts as React.RefCallback<HTMLElement>}
+      >
         <Title
           eyebrow="Authenticity, always"
           title={
@@ -284,14 +333,14 @@ export function Home() {
             </>
           }
         />
-        <div className="cert-grid">
+        <div className="cert-grid sr-stagger-slow">
           {[
             "Responsible material pathways",
             "Diamond and gemstone disclosure",
             "Craft and quality inspection",
             "Lifetime care conversation",
           ].map((x, i) => (
-            <div key={x}>
+            <div key={x} className="sr-scale-up">
               <Diamond />
               <span>0{i + 1}</span>
               <b>{x}</b>
@@ -302,7 +351,10 @@ export function Home() {
       </section>
 
       {/* Testimonials */}
-      <section className="section cream">
+      <section
+        className="section cream"
+        ref={refTestimonials as React.RefCallback<HTMLElement>}
+      >
         <Title
           eyebrow="The Aurelia community"
           title={
@@ -311,9 +363,9 @@ export function Home() {
             </>
           }
         />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto px-4 sr-stagger">
           {testimonials.map((t: any, idx: number) => (
-            <div key={idx} className="bg-white p-6 rounded-xl border border-amber-900/10 shadow-sm">
+            <div key={idx} className="bg-white p-6 rounded-xl border border-amber-900/10 shadow-sm sr-scale-up">
               <div className="flex text-amber-500 mb-2">
                 {[...Array(t.rating || 5)].map((_, i) => (
                   <Star key={i} size={16} fill="currentColor" />

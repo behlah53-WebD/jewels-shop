@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { imgs, products as fallbackProducts } from "@/lib/data";
 
 export interface CartItemType {
@@ -59,8 +59,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // RTK Query auto-cached queries & mutations
   const { data: meData, refetch: refetchMe } = useGetMeQuery();
-  const { data: cartData, refetch: refetchCart } = useGetCartQuery(undefined, { skip: !isAuthenticated });
-  const { data: wishlistData, refetch: refetchWishlist } = useGetWishlistQuery(undefined, { skip: !isAuthenticated });
+  const { data: cartData } = useGetCartQuery(undefined, { skip: !isAuthenticated });
+  const { data: wishlistData } = useGetWishlistQuery(undefined, { skip: !isAuthenticated });
 
   const [triggerUpdateCart] = useUpdateCartMutation();
   const [triggerUpdateWishlist] = useUpdateWishlistMutation();
@@ -91,7 +91,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, wishlistData]);
 
-  const syncCartAndWishlist = async () => {
+  const syncCartAndWishlist = useCallback(async () => {
     try {
       invalidateCache();
       const meResult = await refetchMe();
@@ -123,40 +123,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setCartItems([]);
       setSave([]);
     }
-  };
+  }, [dispatch, refetchMe]);
 
-  const updateCartState = (newItems: CartItemType[]) => {
+  const updateCartState = useCallback((newItems: CartItemType[]) => {
     setCartItems(newItems);
     if (isAuthenticated) {
       triggerUpdateCart({ items: newItems }).catch(console.error);
     }
-  };
+  }, [isAuthenticated, triggerUpdateCart]);
 
-  const updateWishlistState = (newSave: string[]) => {
+  const updateWishlistState = useCallback((newSave: string[]) => {
     setSave(newSave);
     if (isAuthenticated) {
       triggerUpdateWishlist({ products: newSave }).catch(console.error);
     }
-  };
+  }, [isAuthenticated, triggerUpdateWishlist]);
 
-  const proceedToCheckout = (): boolean => {
+  const proceedToCheckout = useCallback((): boolean => {
     if (!isAuthenticated) {
       setAuthModal(true);
       return false;
     }
     return true;
-  };
+  }, [isAuthenticated]);
 
-  const buyNow = (itemOrProduct?: any, quantity: number = 1, size: string = "6"): boolean => {
-    if (!isAuthenticated) {
-      setAuthModal(true);
-      return false;
-    }
-    add(itemOrProduct, quantity, size);
-    return true;
-  };
-
-  const add = (itemOrProduct?: any, quantity: number = 1, size: string = "6") => {
+  const add = useCallback((itemOrProduct?: any, quantity: number = 1, size: string = "6") => {
     if (!isAuthenticated) {
       setAuthModal(true);
       return;
@@ -164,7 +155,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     let newItem: CartItemType;
 
-    // Check if itemOrProduct is a React SyntheticEvent object
     let target = itemOrProduct;
     if (target && typeof target === "object" && (target.nativeEvent || target._reactName || (!target.name && !target._id && !target.id && !target.slug))) {
       target = fallbackProducts[0];
@@ -201,88 +191,145 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    const existingIndex = cartItems.findIndex(
-      (x) => x.product.toString() === newItem.product.toString() && x.size === newItem.size
-    );
-
-    let updatedCart: CartItemType[];
-    if (existingIndex > -1) {
-      updatedCart = cartItems.map((x, idx) =>
-        idx === existingIndex ? { ...x, quantity: x.quantity + newItem.quantity } : x
+    setCartItems((prevItems) => {
+      const existingIndex = prevItems.findIndex(
+        (x) => x.product.toString() === newItem.product.toString() && x.size === newItem.size
       );
-    } else {
-      updatedCart = [...cartItems, newItem];
-    }
 
-    updateCartState(updatedCart);
+      let updatedCart: CartItemType[];
+      if (existingIndex > -1) {
+        updatedCart = prevItems.map((x, idx) =>
+          idx === existingIndex ? { ...x, quantity: x.quantity + newItem.quantity } : x
+        );
+      } else {
+        updatedCart = [...prevItems, newItem];
+      }
+
+      if (isAuthenticated) {
+        triggerUpdateCart({ items: updatedCart }).catch(console.error);
+      }
+      return updatedCart;
+    });
+
     setBag(true);
-  };
+  }, [isAuthenticated, triggerUpdateCart]);
 
-  const updateQuantity = (productId: string, quantity: number, size?: string) => {
-    let updatedCart: CartItemType[];
-    if (quantity <= 0) {
-      updatedCart = cartItems.filter(
+  const buyNow = useCallback((itemOrProduct?: any, quantity: number = 1, size: string = "6"): boolean => {
+    if (!isAuthenticated) {
+      setAuthModal(true);
+      return false;
+    }
+    add(itemOrProduct, quantity, size);
+    return true;
+  }, [isAuthenticated, add]);
+
+  const updateQuantity = useCallback((productId: string, quantity: number, size?: string) => {
+    setCartItems((prevItems) => {
+      let updatedCart: CartItemType[];
+      if (quantity <= 0) {
+        updatedCart = prevItems.filter(
+          (x) => !(x.product.toString() === productId.toString() && (size ? x.size === size : true))
+        );
+      } else {
+        updatedCart = prevItems.map((x) =>
+          x.product.toString() === productId.toString() && (size ? x.size === size : true)
+            ? { ...x, quantity }
+            : x
+        );
+      }
+      if (isAuthenticated) {
+        triggerUpdateCart({ items: updatedCart }).catch(console.error);
+      }
+      return updatedCart;
+    });
+  }, [isAuthenticated, triggerUpdateCart]);
+
+  const removeFromCart = useCallback((productId: string, size?: string) => {
+    setCartItems((prevItems) => {
+      const updatedCart = prevItems.filter(
         (x) => !(x.product.toString() === productId.toString() && (size ? x.size === size : true))
       );
-    } else {
-      updatedCart = cartItems.map((x) =>
-        x.product.toString() === productId.toString() && (size ? x.size === size : true)
-          ? { ...x, quantity }
-          : x
-      );
+      if (isAuthenticated) {
+        triggerUpdateCart({ items: updatedCart }).catch(console.error);
+      }
+      return updatedCart;
+    });
+  }, [isAuthenticated, triggerUpdateCart]);
+
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+    if (isAuthenticated) {
+      triggerUpdateCart({ items: [] }).catch(console.error);
     }
-    updateCartState(updatedCart);
-  };
+  }, [isAuthenticated, triggerUpdateCart]);
 
-  const removeFromCart = (productId: string, size?: string) => {
-    const updatedCart = cartItems.filter(
-      (x) => !(x.product.toString() === productId.toString() && (size ? x.size === size : true))
-    );
-    updateCartState(updatedCart);
-  };
-
-  const clearCart = () => {
-    updateCartState([]);
-  };
-
-  const toggle = (id: string) => {
+  const toggle = useCallback((id: string) => {
     if (!isAuthenticated) {
       setAuthModal(true);
       return;
     }
 
     const pid = id.toString();
-    const newSave = save.includes(pid) ? save.filter((y) => y !== pid) : [...save, pid];
-    updateWishlistState(newSave);
-  };
+    setSave((prevSave) => {
+      const newSave = prevSave.includes(pid) ? prevSave.filter((y) => y !== pid) : [...prevSave, pid];
+      if (isAuthenticated) {
+        triggerUpdateWishlist({ products: newSave }).catch(console.error);
+      }
+      return newSave;
+    });
+  }, [isAuthenticated, triggerUpdateWishlist]);
 
-  const count = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const count = useMemo(() => cartItems.reduce((acc, item) => acc + item.quantity, 0), [cartItems]);
+
+  const contextValue = useMemo(
+    () => ({
+      count,
+      cartItems,
+      save,
+      menu,
+      search,
+      bag,
+      authModal,
+      isAuthenticated,
+      add,
+      buyNow,
+      proceedToCheckout,
+      updateQuantity,
+      removeFromCart,
+      clearCart,
+      toggle,
+      setMenu,
+      setSearch,
+      setBag,
+      setAuthModal,
+      syncCartAndWishlist,
+    }),
+    [
+      count,
+      cartItems,
+      save,
+      menu,
+      search,
+      bag,
+      authModal,
+      isAuthenticated,
+      add,
+      buyNow,
+      proceedToCheckout,
+      updateQuantity,
+      removeFromCart,
+      clearCart,
+      toggle,
+      setMenu,
+      setSearch,
+      setBag,
+      setAuthModal,
+      syncCartAndWishlist,
+    ]
+  );
 
   return (
-    <StoreContext.Provider
-      value={{
-        count,
-        cartItems,
-        save,
-        menu,
-        search,
-        bag,
-        authModal,
-        isAuthenticated,
-        add,
-        buyNow,
-        proceedToCheckout,
-        updateQuantity,
-        removeFromCart,
-        clearCart,
-        toggle,
-        setMenu,
-        setSearch,
-        setBag,
-        setAuthModal,
-        syncCartAndWishlist,
-      }}
-    >
+    <StoreContext.Provider value={contextValue}>
       {children}
     </StoreContext.Provider>
   );

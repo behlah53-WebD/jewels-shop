@@ -1,6 +1,6 @@
-import React from "react";
+import React, { memo } from "react";
 
-export function Title({
+function TitleComponent({
   eyebrow,
   title,
   copy,
@@ -17,3 +17,6 @@ export function Title({
     </div>
   );
 }
+
+export const Title = memo(TitleComponent);
+
