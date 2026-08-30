@@ -315,7 +315,7 @@ export function Home() {
             Begin your commission
           </Link>
         </div>
-        <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px" }}>
+        <div className="craft-image-wrap" style={{ position: "relative" }}>
           <SafeImage src={imgs.hero} alt="Aurelia craftsmanship" fill sizes="(max-width: 768px) 100vw, 50vw" className="sr-scale-in" />
         </div>
       </section>

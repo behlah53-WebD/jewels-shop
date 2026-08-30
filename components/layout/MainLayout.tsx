@@ -19,8 +19,24 @@ const AuthModal = dynamic(() => import("@/components/ui/AuthModal").then((m) => 
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const { menu, setMenu, search, setSearch, bag, setBag, count } = useStore();
-  const [cookie, setCookie] = useState(true);
+  const [cookie, setCookie] = useState(false);
   const pathname = usePathname();
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isDismissed = sessionStorage.getItem("aurelia_cookie_dismissed") === "true";
+      if (!isDismissed) {
+        setCookie(true);
+      }
+    }
+  }, []);
+
+  const handleDismissCookie = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("aurelia_cookie_dismissed", "true");
+    }
+    setCookie(false);
+  };
 
   // These pages are full-screen standalone — hide the global shell chrome
   const isStandalone = pathname?.startsWith("/account") || pathname?.startsWith("/admin");
@@ -104,8 +120,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <b>Your privacy, considered.</b> We use essential cookies to make
             this preview feel considered.
           </p>
-          <Btn onClick={() => setCookie(false)}>Accept</Btn>
-          <button onClick={() => setCookie(false)} suppressHydrationWarning={true}>Manage</button>
+          <Btn onClick={handleDismissCookie}>Accept</Btn>
+          <button onClick={handleDismissCookie} suppressHydrationWarning={true}>Manage</button>
         </div>
       )}
 

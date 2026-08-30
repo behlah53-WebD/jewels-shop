@@ -26,7 +26,10 @@ export function PwaRegister() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowPrompt(true);
+      const isDismissed = sessionStorage.getItem("aurelia_pwa_dismissed") === "true";
+      if (!isDismissed) {
+        setShowPrompt(true);
+      }
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -43,11 +46,13 @@ export function PwaRegister() {
     if (choiceResult.outcome === "accepted") {
       console.log("User accepted PWA installation");
     }
+    sessionStorage.setItem("aurelia_pwa_dismissed", "true");
     setDeferredPrompt(null);
     setShowPrompt(false);
   };
 
   const handleDismiss = () => {
+    sessionStorage.setItem("aurelia_pwa_dismissed", "true");
     setShowPrompt(false);
   };
 

@@ -59,6 +59,8 @@ export async function PUT(
   }
 }
 
+import { deleteFromCloudinary } from "@/lib/cloudinary";
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -74,6 +76,13 @@ export async function DELETE(
     if (!category) {
       return NextResponse.json({ success: false, error: "Category not found" }, { status: 404 });
     }
+
+    if (typeof category.image === "string" && category.image.includes("cloudinary.com")) {
+      deleteFromCloudinary(category.image).catch((err) =>
+        console.warn("Cloudinary Image Cleanup Error:", err)
+      );
+    }
+
     return NextResponse.json({ success: true, message: "Category deleted successfully" });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

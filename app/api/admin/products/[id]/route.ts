@@ -91,6 +91,8 @@ export async function PUT(
   }
 }
 
+import { deleteFromCloudinary } from "@/lib/cloudinary";
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -106,6 +108,19 @@ export async function DELETE(
     if (!product) {
       return NextResponse.json({ success: false, error: "Product not found" }, { status: 404 });
     }
+
+    // Clean up associated Cloudinary images asynchronously
+    const imagesToDelete = [
+      product.featuredImage,
+      ...(Array.isArray(product.images) ? product.images : []),
+    ].filter((x): x is string => typeof x === "string" && x.includes("cloudinary.com"));
+
+    for (const imgUrl of imagesToDelete) {
+      deleteFromCloudinary(imgUrl).catch((err) =>
+        console.warn("Cloudinary Image Cleanup Error:", err)
+      );
+    }
+
     return NextResponse.json({ success: true, message: "Product deleted successfully" });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
